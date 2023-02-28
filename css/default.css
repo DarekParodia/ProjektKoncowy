@@ -1,3 +1,6 @@
+:root{
+    --aside-width: 200px;
+}
 *{
     font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
     color: rgb(240, 246, 252);
@@ -5,12 +8,12 @@
 .menu{
     font-size: 1.2em;
     font-weight: bold;
-    text-align: center;
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    align-items: center;
 }
 .selector{
     padding: 5px;
@@ -21,7 +24,6 @@
     font-size: 14px;
     font-weight: bold;
     padding: 0em;
-    text-align: center;
     flex-wrap: nowrap;
     height: 60px;
 }
@@ -29,6 +31,8 @@
     display: flex;
     flex-direction: row;
     align-items: flex-start;
+}
+.spaceBeetwen{
     justify-content: space-between;
 }
 .logo{
@@ -37,4 +41,61 @@
     align-self: center;
     align-items: center;
     justify-content: center;
+}
+.logoBox{
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: var(--aside-width);
+    height: 60px;
+    background-color: aqua;
+}
+header{
+    background: rgb(22, 27, 34);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%; 
+    padding: 16px;
+    z-index: 666;
+    display: flex;
+    flex-direction: row;
+    align-content: center;
+    align-items: center;
+}
+aside{
+    position: fixed;
+    top: 60px;
+    left: 0;
+    width: var(--aside-width);
+    height: 100%;
+    background-color: rgb(13, 17, 23);
+    z-index: 666;
+    display: flex;
+    flex-direction: column;
+    align-content: center;
+    align-items: center;
+    justify-content: flex-start;
+    border-right: 3px solid rgb(22, 27, 34);
+}
+main{
+    position: absolute;
+    top: 60px;
+    left: 0px;
+    width: 100%;
+    min-height: 100%;
+    background-color: rgb(7, 9, 12);
+}
+h3{
+    color: rgb(255, 255, 255);
+    font-size: 1.2em;
+    font-weight: 400;
+    margin-right: 10px;
+    margin-left: 10px;
+    height: min-content;
+    text-align: center;
+}
+h3:hover{
+    color: rgb(196, 196, 196);
+    cursor: pointer;
 }
