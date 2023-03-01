@@ -88,6 +88,9 @@ aside{
     align-items: center;
     justify-content: flex-start;
     border-right: 2px solid rgb(26, 31, 39);
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 10px;
 }
 @media all and (min-width: 1500px){
     aside{
@@ -95,15 +98,15 @@ aside{
         max-width: var(--aside-max-width);
     }
     main{
-        left:  var(--aside-max-width) !important;
-        width: calc(100% - var(--aside-max-width));
+        left:  calc(var(--aside-max-width) + 40px) !important;
+        width: calc(100% - var(--aside-max-width) - 40);
     }
 }
 main{
     position: absolute;
     top: 60px;
-    left: var(--aside-width);
-    width: 80%;
+    left: calc(var(--aside-width) + 2px);
+    width: calc(100% - var(--aside-width) - 40px);
 }
 h3{
     color: rgb(255, 255, 255);
@@ -176,4 +179,7 @@ h3{
     flex-direction: column;
     align-items: center;
     justify-content: center;
+}
+.mrgleft{
+    margin-left: 20px;
 }
