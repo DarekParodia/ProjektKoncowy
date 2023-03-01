@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Singleplayer</title>
+    <link rel="stylesheet" href="../css/default.css">
+    <link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
+    <script src="../js/game.js"></script>
+</head>
+
+<body>
+    <header class="container flexRow">
+        <div class="logoBox">
+            <a href="/" class="logo">
+                <img src="../img/logo.svg" alt="logo" width="48" height="48">
+            </a>
+            <div class="flxcntr">
+                <div class="flexRow inputbox">
+                    <input type="text" name="gameid" id="gameid" placeholder="ID Gry Multiplayer">
+                    <button type="button" id="gameidbtn" onclick="joinGame()"><img src="img/arrowright.svg" width="16"
+                            height="16"></button>
+                </div>
+            </div>
+        </div>
+        </div>
+        <div class="menu fstart mrgleft">
+            <h3 class="textbtn"><a class="textbtn" href="./">Strona Główna</a></h3>
+            <h3 class="textbtn"><a class="textbtn" href="./html/singleplayer.html">Singleplayer</a></h3>
+            <h3 class="textbtn"><a class="textbtn" href="./multiplayer">Multiplayer</a></h3>
+            <h3 class="textbtn"><a class="textbtn" href="./informacje">Informacje</a></h3>
+            <h3><a class="textbtn" href="https://github.com/DarekParodia/ProjektKoncowy">Github</a></h3>
+        </div>
+        <div class="menu fend lcspace">
+            <div class="divbtn">
+                <h3>Demo Konta</h3>
+            </div>
+        </div>
+    </header>
+    <div>
+        <aside>
+            <h3>Twoje Statystyki:</h3>
+            <p> Lorem ipsum, dolor sit amet consectetur adipisicing elit. Quisquam labore tempore molestias? Quis odit
+                quisquam magni aspernatur ipsam reiciendis excepturi amet eos! Sapiente quod possimus natus cum,
+                mollitia et deleniti.</p>
+            <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Ducimus deleniti eius velit cumque doloribus
+                similique obcaecati?</p>
+        </aside>
+        <main class="flxcntr">
+            <h1 class="center">Singleplayer</h1>
+            <div>
+                <label for="resolution" class="mrgleft">Roździelczość: </label>
+                <select name="resolution" id="resolution">
+                    <option value="640x480">640x480</option>
+                    <option value="800x600">800x600</option>
+                    <option value="1024x768">1024x768</option>
+                    <option value="fullscreen">fullscreen</option>
+                </select>
+                <br>
+                <canvas id="gamecanvas"></canvas>
+            </div>
+        </main>
+    </div>
+
+</body>
+
+</html>

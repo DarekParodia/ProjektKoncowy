@@ -9,7 +9,7 @@
     color: rgb(240, 246, 252);
 }
 html{
-    background-color: rgb(7, 9, 12);
+    background-color: rgb(1, 4, 9);
 }
 .menu{
     font-size: 1.2em;
@@ -105,8 +105,13 @@ aside{
 main{
     position: absolute;
     top: 60px;
-    left: calc(var(--aside-width) + 2px);
+    left: calc(var(--aside-width) + 40px);
     width: calc(100% - var(--aside-width) - 40px);
+    -moz-box-sizing: border-box; 
+    -webkit-box-sizing: border-box; 
+     box-sizing: border-box; 
+     padding-left: 20px;
+    padding-right: 20px;
 }
 h3{
     color: rgb(255, 255, 255);
@@ -116,13 +121,35 @@ h3{
     text-align: center;
     margin: 0px;
 }
+label{
+    color: rgb(255, 255, 255);
+    font-size: 14px;
+    font-weight: 600;
+    height: min-content;
+    text-align: center;
+    margin: 0px;
+}
+select{
+    background-color: rgb(13, 17, 23);
+    border: 1px solid var(--passive-color);
+    color: rgb(255, 255, 255);
+    height: 25px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    border-radius: 6px;
+    padding-bottom: 2px;
+}
+canvas{
+    margin: 20px;
+}
 #gameidbtn{
     background-color: var(--passive-color);
-    height: 29px;
+    height: 31px;
     border-top-right-radius: 6px;
     border-bottom-right-radius: 6px;
     position: relative;
-    top: -1px;
+    top: -2px;
 }
 #gameidbtn:hover{
     background-color: var(--active-color);
@@ -149,6 +176,7 @@ h3{
 .textbtn{
     margin-right: 10px;
     margin-left: 10px;
+    text-decoration: none;
 }
 .textbtn:hover{
     color: rgb(196, 196, 196);
@@ -182,4 +210,7 @@ h3{
 }
 .mrgleft{
     margin-left: 20px;
+}
+.center{
+    text-align: center;
 }
