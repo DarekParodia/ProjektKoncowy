@@ -1,0 +1,22 @@
+{
+  "name": "projektkoncowy",
+  "version": "1.0.0",
+  "description": "aldkalkrelklra przemek grulca",
+  "main": "server.js",
+  "scripts": {
+    "test": "run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DarekParodia/ProjektKoncowy.git"
+  },
+  "author": "DarekParodia",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DarekParodia/ProjektKoncowy/issues"
+  },
+  "homepage": "https://github.com/DarekParodia/ProjektKoncowy#readme",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
