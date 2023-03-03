@@ -102,6 +102,73 @@ aside{
         width: calc(100% - var(--aside-max-width) - 40);
     }
 }
+@media all and (max-width: 960px){
+    .menu{
+        display: none;
+    }
+    .mobileMenu{
+        display: flex !important;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: flex-end;
+        align-content: center;
+        align-self: center;
+        width: 100%;
+    }
+
+}
+.mobileMenu{
+    display: none;
+}
+.mobileMenu .divbtn{
+    background-color: rgba(22, 27, 34, 0);
+    border: 2px solid rgba(58, 65, 77, 0);
+}
+.mobileMenu .divbtn:hover{
+    background-color: rgba(22, 27, 34, 0);
+    border: 2px solid rgba(58, 65, 77, 0);
+}
+.mobileMenu button{
+    background: none;
+    border: none;
+}
+.menu-div-pojda{
+    width: 22px;
+    height: 2px;
+    background-color: white;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: 1s;
+}
+.menu-div-pojda-klikniete1{
+    width: 22px;
+    height: 2px;
+    background-color: white;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: 1s;
+    transform: rotate(45deg);
+    position: relative;
+    top: 3px;
+    }
+.menu-div-pojda-klikniete2{
+    width: 22px;
+    height: 2px;
+    background-color: white;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: 1s;
+    transform: rotate(-45deg);
+    position: relative;
+    top: -3px;
+}
 main{
     position: absolute;
     top: 60px;
@@ -177,6 +244,8 @@ canvas{
     margin-right: 10px;
     margin-left: 10px;
     text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
 }
 .textbtn:hover{
     color: rgb(196, 196, 196);
