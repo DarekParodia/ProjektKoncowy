@@ -3,6 +3,7 @@
     --aside-max-width: 300px;
     --passive-color: rgb(92, 166, 196);
     --active-color: rgb(108, 194, 228);
+    --mobile-menu-speed: 0.5s;
 }
 *{
     font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
@@ -106,6 +107,13 @@ aside{
     .menu{
         display: none;
     }
+    aside{
+        display: none;
+    }
+    main{
+        left: 0 !important;
+        width: 100%;
+    }
     .mobileMenu{
         display: flex !important;
         flex-direction: row;
@@ -141,33 +149,43 @@ aside{
     margin-bottom: 4px;
     border-radius: 6px;
     box-sizing: border-box;
-    transition: 1s;
+    transition: var(--mobile-menu-speed);
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 .menu-div-pojda-klikniete1{
     width: 22px;
     height: 2px;
     background-color: white;
-    margin-top: 4px;
+    margin-top: 8px;
     margin-bottom: 4px;
     border-radius: 6px;
     box-sizing: border-box;
-    transition: 1s;
+    transition: var(--mobile-menu-speed);
     transform: rotate(45deg);
-    position: relative;
-    top: 3px;
+    transform-origin: left;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     }
 .menu-div-pojda-klikniete2{
+    background-color: rgba(0, 0, 0, 0);
+    margin-top: 4px;
+    margin-bottom: 4px;
+    width: 14px;
+    height: 2px;
+    transition: var(--mobile-menu-speed);
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-div-pojda-klikniete3{
     width: 22px;
     height: 2px;
     background-color: white;
-    margin-top: 4px;
+    margin-top: 8px;
     margin-bottom: 4px;
     border-radius: 6px;
     box-sizing: border-box;
-    transition: 1s;
+    transition: var(--mobile-menu-speed);
+    transform-origin: left;
     transform: rotate(-45deg);
-    position: relative;
-    top: -3px;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 main{
     position: absolute;

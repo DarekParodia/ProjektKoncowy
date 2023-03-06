@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", (e) => {
     var mobileButt = document.getElementById("mobileButt");
+    var mobileMenu = document.getElementById("mobileMenu");
     var mobileButtKlikniety = false;
     mobileButt.addEventListener("click", (e) => {
         let cntr = 0;
