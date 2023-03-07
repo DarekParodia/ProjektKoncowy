@@ -4,6 +4,7 @@
     --passive-color: rgb(92, 166, 196);
     --active-color: rgb(108, 194, 228);
     --mobile-menu-speed: 0.5s;
+    --menu-transistion-speed: 0.5s;
 }
 *{
     font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
@@ -141,6 +142,20 @@ aside{
     background: none;
     border: none;
 }
+.mxnMenu{
+    background-color: rgba(30, 36, 49, 0.966);
+    width: 100%;
+    height: 80%;
+    position: fixed;
+    top: -80%;
+    left: 0px;
+    z-index: 665;
+    transition: var(--menu-transistion-speed);
+}
+.mxnMenuShown{
+    top: 60px;
+    transition: var(--menu-transistion-speed);
+}   
 .menu-div-pojda{
     width: 22px;
     height: 2px;
@@ -178,7 +193,7 @@ aside{
     width: 22px;
     height: 2px;
     background-color: white;
-    margin-top: 8px;
+    margin-top: 7.03px;
     margin-bottom: 4px;
     border-radius: 6px;
     box-sizing: border-box;
@@ -186,6 +201,11 @@ aside{
     transform-origin: left;
     transform: rotate(-45deg);
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-div-pojda-glowny{
+    transition: var(--mobile-menu-speed);
+    transform-origin: left;
+    transform: translateX(2px) translateY(-2px);
 }
 main{
     position: absolute;
@@ -227,6 +247,7 @@ select{
 }
 canvas{
     margin: 20px;
+    border: solid 1px aqua;
 }
 #gameidbtn{
     background-color: var(--passive-color);
