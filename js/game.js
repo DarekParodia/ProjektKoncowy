@@ -8,10 +8,46 @@ var oldResX = 0;
 var oldResY = 0;
 var resDiffX = 0;
 var resDiffY = 0;
+var deltaTime = 0;
 var mouse = {
     x: 0,
     y: 0,
 };
+class bullet {
+    constructor(x, y, angle, speed = 10, color = "red") {
+        this.x = x;
+        this.y = y;
+        this.angle = angle;
+        this.speed = speed;
+        this.color = color;
+    }
+    update() {
+        this.x += Math.cos(this.angle) * this.speed * deltaTime;
+        this.y += Math.sin(this.angle) * this.speed * deltaTime;
+    }
+    render() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, 5, 5);
+    }
+}
+class pistol {
+    constructor() {
+        this.x = 0;
+        this.y = 0;
+        this.width = 10;
+        this.height = 10;
+        this.angle = 0;
+    }
+    render() {
+        ctx.save();
+        ctx.fillStyle = "magenta";
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillRect(20, -5, 10, 10);
+        ctx.restore();
+    }
+}
+
 class bush {
     constructor(x, y) {
         this.x = x;
@@ -38,6 +74,7 @@ class square {
 }
 class mapClass {
     constructor() {
+        this.projectiles = [];
         this.entities = [];
         this.mapElements = [];
     }
@@ -61,19 +98,47 @@ class playerClass {
         this.width = 32;
         this.height = 42;
         this.angle = 0;
-        this.speed = 10;
+        this.speed = 30;
         this.baseTexture = baseTexture;
+        this.gun = new pistol();
+    }
+    update() {
+        let diagnal = false;
+        if ((keyPressed.includes("w") && keyPressed.includes("a")) || (keyPressed.includes("w") && keyPressed.includes("d")) || (keyPressed.includes("s") && keyPressed.includes("a")) || (keyPressed.includes("s") && keyPressed.includes("d"))) diagnal = true;
+        if (keyPressed.includes("w")) {
+            this.y -= diagnal ? this.speed * 0.75 * deltaTime : this.speed * deltaTime;
+        }
+        if (keyPressed.includes("a")) {
+            this.x -= diagnal ? this.speed * 0.75 * deltaTime : this.speed * deltaTime;
+        }
+        if (keyPressed.includes("s")) {
+            this.y += diagnal ? this.speed * 0.75 * deltaTime : this.speed * deltaTime;
+        }
+        if (keyPressed.includes("d")) {
+            this.x += diagnal ? this.speed * 0.75 * deltaTime : this.speed * deltaTime;
+        }
+        camera.x = this.x - camera.offsetX + resDiffX;
+        camera.y = this.y - camera.offsetY + resDiffY;
     }
     draw() {
         let degreeAngle = this.angle * (180 / Math.PI);
-        if (degreeAngle > 0) {
+        if (degreeAngle > -90 && degreeAngle < 90) {
+            // draw player
             ctx.save();
             ctx.scale(-1, 1);
             ctx.translate(-this.width - this.x + this.width / 2, 0 + this.y - this.height / 2);
             ctx.drawImage(this.baseTexture, 0, 0, this.width, this.height);
-
             ctx.restore();
         } else ctx.drawImage(this.baseTexture, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+        // draw gun
+        this.gun.x = this.x;
+        this.gun.y = this.y;
+        this.gun.angle = this.angle;
+        this.gun.render();
+    }
+    shoot() {
+        console.log("shoot");
+        map.projectiles.push(new bullet(this.x, this.y, this.angle, 10, "red"));
     }
 }
 var player;
@@ -111,39 +176,26 @@ function init() {
 var lastLoop = 0;
 var FPS = 0;
 function loop() {
-    FPS = 1000 / Date.now() - lastLoop;
+    deltaTime = performance.now() / 100 - lastLoop;
+    FPS = 10 / deltaTime;
+    console.log(FPS);
     update();
     render();
-    lastLoop = Date.now();
+    lastLoop = performance.now() / 100;
     requestAnimationFrame(loop);
 }
 function update() {
-    let diagnal = false;
-    if ((keyPressed.includes("w") && keyPressed.includes("a")) || (keyPressed.includes("w") && keyPressed.includes("d")) || (keyPressed.includes("s") && keyPressed.includes("a")) || (keyPressed.includes("s") && keyPressed.includes("d"))) diagnal = true;
-    if (keyPressed.includes("w")) {
-        player.y -= diagnal ? player.speed * 0.75 : player.speed;
-    }
-    if (keyPressed.includes("a")) {
-        player.x -= diagnal ? player.speed * 0.75 : player.speed;
-    }
-    if (keyPressed.includes("s")) {
-        player.y += diagnal ? player.speed * 0.75 : player.speed;
-    }
-    if (keyPressed.includes("d")) {
-        player.x += diagnal ? player.speed * 0.75 : player.speed;
-    }
-    camera.x = player.x - camera.offsetX + resDiffX;
-    camera.y = player.y - camera.offsetY + resDiffY;
-
+    // update player
+    player.update();
+    // update map elements
     for (let element of map.entities) if (element.update) element.update();
+    for (let element of map.projectiles) if (element.update) element.update();
 
     // calculate player angle based on mouse position
     let canvasPosisitons = canvas.getBoundingClientRect();
     let playerPosx = canvasPosisitons.x + canvas.width / 2;
     let playerPosy = canvasPosisitons.y + canvas.height / 2;
-    let dis = Math.sqrt(Math.pow(playerPosx - mouse.x, 2) + Math.pow(playerPosy - mouse.y, 2));
-    let sinOfAngleX = (playerPosy - mouse.y) / dis;
-    player.angle = mouse.x > playerPosx ? Math.acos(sinOfAngleX) : -Math.acos(sinOfAngleX);
+    player.angle = Math.atan2(mouse.y - playerPosy, mouse.x - playerPosx);
 }
 function render() {
     ctx.clearRect(camera.x, camera.y, canvas.width, canvas.height); // clear screen
@@ -158,6 +210,7 @@ function render() {
     // render all object in map
     for (let element of map.mapElements) if (element.render) element.render();
     for (let element of map.entities) if (element.render) element.render();
+    for (let element of map.projectiles) if (element.render) element.render();
     player.draw(); // render player
     renderHud(); // render hud
 }
@@ -185,6 +238,11 @@ function addListeners() {
     window.addEventListener("mousemove", (e) => {
         mouse.x = e.x;
         mouse.y = e.y;
+    });
+    window.addEventListener("mousedown", (e) => {
+        if (e.button == 0) {
+            player.shoot();
+        }
     });
 }
 function onCanvasChange() {
