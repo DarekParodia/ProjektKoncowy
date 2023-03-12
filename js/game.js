@@ -4,6 +4,8 @@ var keyPressed = [];
 var textures = {
     obamna: new Image(20, 20),
 };
+var oldResX = 0;
+var oldResY = 0;
 var mouse = {
     x: 0,
     y: 0,
@@ -46,6 +48,8 @@ class cameraClass {
         this.localY = 0;
         this.lastX = 0;
         this.lastY = 0;
+        this.offsetX = 0;
+        this.offsetY = 0;
     }
 }
 class playerClass {
@@ -75,6 +79,7 @@ var camera;
 var map;
 
 document.addEventListener("DOMContentLoaded", init);
+
 function init() {
     canvas = document.getElementById("gamecanvas");
     canvas.width = 640;
@@ -86,8 +91,10 @@ function init() {
     addListeners();
     // import images
     textures.obamna.src = "../img/obamna.jpg";
-    player = new playerClass(canvas.width / 2, canvas.height / 2);
+    player = new playerClass(0, 0);
     camera = new cameraClass();
+    camera.offsetX = canvas.width / 2;
+    camera.offsetY = canvas.height / 2;
     map = new mapClass();
     map.mapElements.push(new bush(100, 233));
     map.mapElements.push(new square(200, 200, 60, 60));
@@ -95,6 +102,8 @@ function init() {
     camera.y = player.y;
     camera.lastX = camera.x;
     camera.lastY = camera.y;
+    oldResX = canvas.width;
+    oldResY = canvas.height;
     requestAnimationFrame(loop);
 }
 var lastLoop = 0;
@@ -121,8 +130,8 @@ function update() {
     if (keyPressed.includes("d")) {
         player.x += diagnal ? player.speed * 0.75 : player.speed;
     }
-    camera.x = player.x;
-    camera.y = player.y;
+    camera.x = player.x - camera.offsetX;
+    camera.y = player.y - camera.offsetY;
 
     for (let element of map.entities) if (element.update) element.update();
 
@@ -135,7 +144,7 @@ function update() {
     player.angle = mouse.x > playerPosx ? Math.acos(sinOfAngleX) : -Math.acos(sinOfAngleX);
 }
 function render() {
-    ctx.clearRect(camera.x - canvas.width / 2, camera.y - canvas.height / 2, canvas.width, canvas.height);
+    ctx.clearRect(camera.x, camera.y, canvas.width, canvas.height);
     if (camera.x != camera.lastX || camera.y != camera.lastY) {
         let cameraDeltaX = camera.x - camera.lastX;
         let cameraDeltaY = camera.y - camera.lastY;
@@ -164,6 +173,7 @@ function addListeners() {
         }
         ctx.fillStyle = "red";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        onCanvasChange();
     });
     document.addEventListener("fullscreenchange", function () {
         var tmpElement = document.fullscreenElement;
@@ -174,6 +184,7 @@ function addListeners() {
             ctx.fillStyle = "red";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
+        onCanvasChange();
     });
     window.addEventListener("keydown", (e) => {
         var key = e.key.toLowerCase();
@@ -189,4 +200,16 @@ function addListeners() {
         mouse.x = e.x;
         mouse.y = e.y;
     });
+}
+function onCanvasChange() {
+    ctx.translate(-camera.x, -camera.y);
+    oldResX = canvas.width;
+    oldResY = canvas.height;
+}
+function text(text, x, y, color = "white", size = 20) {
+    let tmp = ctx.fillStyle;
+    ctx.fillStyle = color;
+    ctx.font = size + "px Arial";
+    ctx.fillText(text, x, y);
+    ctx.fillStyle = tmp;
 }
