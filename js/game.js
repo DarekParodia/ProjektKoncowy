@@ -6,6 +6,8 @@ var textures = {
 };
 var oldResX = 0;
 var oldResY = 0;
+var resDiffX = 0;
+var resDiffY = 0;
 var mouse = {
     x: 0,
     y: 0,
@@ -56,8 +58,8 @@ class playerClass {
     constructor(x, y, baseTexture = textures.obamna) {
         this.x = x;
         this.y = y;
-        this.width = 40;
-        this.height = 50;
+        this.width = 32;
+        this.height = 42;
         this.angle = 0;
         this.speed = 10;
         this.baseTexture = baseTexture;
@@ -82,7 +84,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 function init() {
     canvas = document.getElementById("gamecanvas");
-    canvas.width = 640;
+    canvas.width = 854;
     canvas.height = 480;
     ctx = canvas.getContext("2d");
     ctx.fillStyle = "red";
@@ -130,8 +132,8 @@ function update() {
     if (keyPressed.includes("d")) {
         player.x += diagnal ? player.speed * 0.75 : player.speed;
     }
-    camera.x = player.x - camera.offsetX;
-    camera.y = player.y - camera.offsetY;
+    camera.x = player.x - camera.offsetX + resDiffX;
+    camera.y = player.y - camera.offsetY + resDiffY;
 
     for (let element of map.entities) if (element.update) element.update();
 
@@ -144,46 +146,30 @@ function update() {
     player.angle = mouse.x > playerPosx ? Math.acos(sinOfAngleX) : -Math.acos(sinOfAngleX);
 }
 function render() {
-    ctx.clearRect(camera.x, camera.y, canvas.width, canvas.height);
+    ctx.clearRect(camera.x, camera.y, canvas.width, canvas.height); // clear screen
     if (camera.x != camera.lastX || camera.y != camera.lastY) {
+        // move camera
         let cameraDeltaX = camera.x - camera.lastX;
         let cameraDeltaY = camera.y - camera.lastY;
         ctx.translate(-cameraDeltaX, -cameraDeltaY);
         camera.lastX = camera.x;
         camera.lastY = camera.y;
     }
-
+    // render all object in map
     for (let element of map.mapElements) if (element.render) element.render();
     for (let element of map.entities) if (element.render) element.render();
-    player.draw();
+    player.draw(); // render player
+    renderHud(); // render hud
 }
+function renderHud() {}
 function addListeners() {
     var select = document.getElementById("resolution");
     select.addEventListener("change", (e) => {
         var value = e.target.value;
-        if (value == "fullscreen") {
-            canvas.requestFullscreen();
-            canvas.width = window.screen.availWidth;
-            canvas.height = window.screen.availHeight;
-        } else {
-            var width = value.split("x")[0];
-            var height = value.split("x")[1];
-            canvas.width = width;
-            canvas.height = height;
-        }
-        ctx.fillStyle = "red";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        onCanvasChange();
-    });
-    document.addEventListener("fullscreenchange", function () {
-        var tmpElement = document.fullscreenElement;
-        if (tmpElement == null) {
-            select.value = "640x480";
-            canvas.width = 640;
-            canvas.height = 480;
-            ctx.fillStyle = "red";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+        var width = value.split("x")[0];
+        var height = value.split("x")[1];
+        canvas.width = width;
+        canvas.height = height;
         onCanvasChange();
     });
     window.addEventListener("keydown", (e) => {
@@ -203,6 +189,8 @@ function addListeners() {
 }
 function onCanvasChange() {
     ctx.translate(-camera.x, -camera.y);
+    resDiffX = (864 - canvas.width) / 2;
+    resDiffY = (480 - canvas.height) / 2;
     oldResX = canvas.width;
     oldResY = canvas.height;
 }
