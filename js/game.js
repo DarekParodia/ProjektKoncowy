@@ -9,6 +9,7 @@ var oldResY = 0;
 var resDiffX = 0;
 var resDiffY = 0;
 var deltaTime = 0;
+var isMouseDown = false;
 var mouse = {
     x: 0,
     y: 0,
@@ -20,6 +21,8 @@ class bullet {
         this.angle = angle;
         this.speed = speed;
         this.color = color;
+        this.width = 5;
+        this.height = 5;
     }
     update() {
         this.x += Math.cos(this.angle) * this.speed * deltaTime;
@@ -31,6 +34,28 @@ class bullet {
     }
 }
 class pistol {
+    constructor() {
+        this.x = 0;
+        this.y = 0;
+        this.width = 10;
+        this.height = 10;
+        this.angle = 0;
+    }
+    render() {
+        ctx.save();
+        ctx.fillStyle = "magenta";
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillRect(20, -5, 10, 10);
+        ctx.restore();
+    }
+    update() {}
+    shoot() {
+        let bulet = new bullet(this.x + Math.cos(this.angle) * 24 - 2, this.y + Math.sin(this.angle) * 24 - 2, this.angle);
+        map.projectiles.push(bulet);
+    }
+}
+class rifle {
     constructor() {
         this.x = 0;
         this.y = 0;
@@ -136,10 +161,6 @@ class playerClass {
         this.gun.angle = this.angle;
         this.gun.render();
     }
-    shoot() {
-        console.log("shoot");
-        map.projectiles.push(new bullet(this.x, this.y, this.angle, 10, "red"));
-    }
 }
 var player;
 var camera;
@@ -240,9 +261,13 @@ function addListeners() {
         mouse.y = e.y;
     });
     window.addEventListener("mousedown", (e) => {
+        isMouseDown = true;
         if (e.button == 0) {
-            player.shoot();
+            player.gun.shoot();
         }
+    });
+    window.addEventListener("mouseup", (e) => {
+        isMouseDown = false;
     });
 }
 function onCanvasChange() {
