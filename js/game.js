@@ -15,7 +15,7 @@ var mouse = {
     y: 0,
 };
 class bullet {
-    constructor(x, y, angle, speed = 10, color = "red") {
+    constructor(parent, x, y, angle, speed = 10, damage = 5, color = "yellow") {
         this.x = x;
         this.y = y;
         this.angle = angle;
@@ -23,15 +23,31 @@ class bullet {
         this.color = color;
         this.width = 5;
         this.height = 5;
+        this.parent = parent;
+        this.damage = damage;
     }
     update() {
-        this.x += Math.cos(this.angle) * this.speed * deltaTime;
-        this.y += Math.sin(this.angle) * this.speed * deltaTime;
+        for (let ap = 0; ap < deltaTime * 100; ap++) {
+            this.x += (Math.cos(this.angle) * this.speed) / 100;
+            this.y += (Math.sin(this.angle) * this.speed) / 100;
+            for (let element of map.mapElements) {
+                if (checkCollision(this, element)) {
+                    if (element.collision) element.collision(this);
+                    map.projectiles.splice(map.projectiles.indexOf(this), 1);
+                    return;
+                }
+            }
+        }
     }
     render() {
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, 5, 5);
     }
+}
+function checkCollision(parent, element) {
+    let hitboxX = parent.width > element.width ? parent.width / 2 : element.width / 2;
+    let hitboxY = parent.height > element.height ? parent.height / 2 : element.height / 2;
+    return Math.abs(parent.x + parent.width / 2 - (element.x + element.width / 2)) < hitboxX && Math.abs(parent.y + parent.height / 2 - (element.y + element.height / 2)) < hitboxY;
 }
 class pistol {
     constructor() {
@@ -40,6 +56,10 @@ class pistol {
         this.width = 10;
         this.height = 10;
         this.angle = 0;
+        this.velocity = 50;
+        this.shotspeed = 500;
+        this.lastShot = 0;
+        this.damage = 15;
     }
     render() {
         ctx.save();
@@ -51,25 +71,35 @@ class pistol {
     }
     update() {}
     shoot() {
-        let bulet = new bullet(this.x + Math.cos(this.angle) * 24 - 2, this.y + Math.sin(this.angle) * 24 - 2, this.angle);
-        map.projectiles.push(bulet);
+        this.lastShot = performance.now();
+        shootProjectile(this.x, this.y, this.angle, this.velocity);
     }
 }
 class rifle {
-    constructor() {
+    constructor(parent) {
         this.x = 0;
         this.y = 0;
         this.width = 10;
         this.height = 10;
         this.angle = 0;
+        this.velocity = 130;
+        this.shotspeed = 190;
+        this.lastShot = 0;
+        this.damage = 5;
+        this.parent = parent;
     }
     render() {
         ctx.save();
-        ctx.fillStyle = "magenta";
+        ctx.fillStyle = "red";
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
-        ctx.fillRect(20, -5, 10, 10);
+        ctx.fillRect(20, -5, 20, 10);
         ctx.restore();
+    }
+    update() {}
+    shoot() {
+        this.lastShot = performance.now();
+        shootProjectile(this.x, this.y, this.angle, this.velocity, this.parent);
     }
 }
 
@@ -77,24 +107,37 @@ class bush {
     constructor(x, y) {
         this.x = x;
         this.y = y;
+        this.width = 20;
+        this.height = 20;
     }
     render() {
         ctx.fillStyle = "green";
-        ctx.fillRect(this.x, this.y, 25, 25);
-        ctx.fillRect(this.x + 15, this.y + 10, 20, 20);
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillRect(this.x + 15, this.y + 10, this.width, this.height);
     }
 }
 class square {
     constructor(x, y, sx, sy, color = "green") {
         this.x = x;
         this.y = y;
-        this.sx = sx;
-        this.sy = sy;
+        this.width = sx;
+        this.height = sy;
         this.color = color;
+        this.maxHealth = 100;
+        this.health = 100;
     }
     render() {
         ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.sx, this.sy);
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = "lightcoral";
+        ctx.fillRect(this.x, this.y - 10, this.width, 5);
+        ctx.fillStyle = "lightgreen";
+        ctx.fillRect(this.x, this.y - 10, (this.width / this.maxHealth) * this.health, 5);
+    }
+    collision(collider) {
+        if (collider.damage && this.health > 0) this.health -= collider.damage;
+        if (this.health <= 0) map.mapElements.splice(map.mapElements.indexOf(this), 1);
+        console.log(this.health);
     }
 }
 class mapClass {
@@ -173,8 +216,6 @@ function init() {
     canvas.width = 854;
     canvas.height = 480;
     ctx = canvas.getContext("2d");
-    ctx.fillStyle = "red";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     addListeners();
     // import images
@@ -184,7 +225,7 @@ function init() {
     camera.offsetX = canvas.width / 2;
     camera.offsetY = canvas.height / 2;
     map = new mapClass();
-    map.mapElements.push(new bush(100, 233));
+    // map.mapElements.push(new bush(100, 233));
     map.mapElements.push(new square(200, 200, 60, 60));
     camera.x = player.x;
     camera.y = player.y;
@@ -195,14 +236,19 @@ function init() {
     requestAnimationFrame(loop);
 }
 var lastLoop = 0;
+var lastd = performance.now();
 var FPS = 0;
 function loop() {
-    deltaTime = performance.now() / 100 - lastLoop;
-    FPS = 10 / deltaTime;
-    console.log(FPS);
+    deltaTime = performance.now() - lastLoop;
+    FPS = 1000 / deltaTime;
+    deltaTime = deltaTime / 100;
+    // if (performance.now() - lastd > 100) {
     update();
+    lastd = performance.now();
+    // }
     render();
-    lastLoop = performance.now() / 100;
+
+    lastLoop = performance.now();
     requestAnimationFrame(loop);
 }
 function update() {
@@ -211,6 +257,11 @@ function update() {
     // update map elements
     for (let element of map.entities) if (element.update) element.update();
     for (let element of map.projectiles) if (element.update) element.update();
+
+    // shoot wepons
+    if (isMouseDown && performance.now() - player.gun.lastShot >= player.gun.shotspeed) {
+        player.gun.shoot();
+    }
 
     // calculate player angle based on mouse position
     let canvasPosisitons = canvas.getBoundingClientRect();
@@ -235,7 +286,10 @@ function render() {
     player.draw(); // render player
     renderHud(); // render hud
 }
-function renderHud() {}
+function renderHud() {
+    text("FPS: " + Math.round(FPS * 100) / 100, camera.x + 10, camera.y + 25);
+    text("DeltaTime: " + Math.round(deltaTime * 10000) / 100 + "ms", camera.x + 10, camera.y + 45);
+}
 function addListeners() {
     var select = document.getElementById("resolution");
     select.addEventListener("change", (e) => {
@@ -250,6 +304,8 @@ function addListeners() {
         var key = e.key.toLowerCase();
         if (!keyPressed.includes(key)) keyPressed.push(key);
         console.log(keyPressed);
+        if (key == "1") player.gun = new pistol();
+        if (key == "2") player.gun = new rifle();
     });
     window.addEventListener("keyup", (e) => {
         var key = e.key.toLowerCase();
@@ -262,9 +318,6 @@ function addListeners() {
     });
     window.addEventListener("mousedown", (e) => {
         isMouseDown = true;
-        if (e.button == 0) {
-            player.gun.shoot();
-        }
     });
     window.addEventListener("mouseup", (e) => {
         isMouseDown = false;
@@ -283,4 +336,8 @@ function text(text, x, y, color = "white", size = 20) {
     ctx.font = size + "px Arial";
     ctx.fillText(text, x, y);
     ctx.fillStyle = tmp;
+}
+function shootProjectile(x, y, angle, velocity, parent) {
+    let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity);
+    map.projectiles.push(bulet);
 }
