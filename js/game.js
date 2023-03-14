@@ -14,6 +14,33 @@ var mouse = {
     x: 0,
     y: 0,
 };
+class enemy {
+    constructor(x, y, width, height, speed = 5, damage = 5, color = "red") {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.speed = speed;
+        this.damage = damage;
+        this.color = color;
+        this.angle = 0;
+        this.health = 100;
+        this.maxHealth = 100;
+    }
+    update() {
+        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+    }
+    render() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = "lightcoral";
+        ctx.fillRect(this.x, this.y - 10, this.width, 5);
+        ctx.fillStyle = "lightgreen";
+        ctx.fillRect(this.x, this.y - 10, (this.width / this.maxHealth) * this.health, 5);
+    }
+}
 class bullet {
     constructor(parent, x, y, angle, speed = 10, damage = 5, color = "yellow") {
         this.x = x;
@@ -72,7 +99,7 @@ class pistol {
     update() {}
     shoot() {
         this.lastShot = performance.now();
-        shootProjectile(this.x, this.y, this.angle, this.velocity);
+        shootProjectile(this.x, this.y, this.angle, this.velocity, this.parent, this.damage);
     }
 }
 class rifle {
@@ -99,7 +126,7 @@ class rifle {
     update() {}
     shoot() {
         this.lastShot = performance.now();
-        shootProjectile(this.x, this.y, this.angle, this.velocity, this.parent);
+        shootProjectile(this.x, this.y, this.angle, this.velocity, this.parent, this.damage);
     }
 }
 
@@ -227,6 +254,7 @@ function init() {
     map = new mapClass();
     // map.mapElements.push(new bush(100, 233));
     map.mapElements.push(new square(200, 200, 60, 60));
+    map.entities.push(new enemy(100, 100));
     camera.x = player.x;
     camera.y = player.y;
     camera.lastX = camera.x;
@@ -251,6 +279,10 @@ function loop() {
     lastLoop = performance.now();
     requestAnimationFrame(loop);
 }
+var weapons = {
+    pistol: new pistol(),
+    rifle: new rifle(),
+};
 function update() {
     // update player
     player.update();
@@ -258,6 +290,8 @@ function update() {
     for (let element of map.entities) if (element.update) element.update();
     for (let element of map.projectiles) if (element.update) element.update();
 
+    if (keyPressed.includes("1")) player.gun = weapons.pistol;
+    else if (keyPressed.includes("2")) player.gun = weapons.rifle;
     // shoot wepons
     if (isMouseDown && performance.now() - player.gun.lastShot >= player.gun.shotspeed) {
         player.gun.shoot();
@@ -304,8 +338,6 @@ function addListeners() {
         var key = e.key.toLowerCase();
         if (!keyPressed.includes(key)) keyPressed.push(key);
         console.log(keyPressed);
-        if (key == "1") player.gun = new pistol();
-        if (key == "2") player.gun = new rifle();
     });
     window.addEventListener("keyup", (e) => {
         var key = e.key.toLowerCase();
