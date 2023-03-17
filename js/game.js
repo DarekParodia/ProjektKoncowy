@@ -14,6 +14,41 @@ var mouse = {
     x: 0,
     y: 0,
 };
+class xp {
+    constructor(x, y, owner, value = 1) {
+        this.x = x;
+        this.y = y;
+        this.width = 5;
+        this.height = 5;
+        this.color = "green";
+        this.acceleration = 0.15;
+        this.velocity = 1;
+        this.owner = owner;
+        this.bornTime = performance.now();
+        this.xpValue = value;
+        this.minDistance = 100;
+        this.following = false;
+        console.log("xp spawned at: ", x, y);
+    }
+    update() {
+        if (dystans(this.x, this.y, this.owner.x, this.owner.y) < this.minDistance) this.following = true;
+        if (this.following) {
+            if (checkCollision(this, this.owner)) {
+                this.owner.xp += this.xpValue;
+                map.ghosts.splice(map.ghosts.indexOf(this), 1);
+                console.log("xp collected at: ", this.x, this.y);
+            } else {
+                this.y += Math.sin(Math.atan2(player.y - this.y, player.x - this.x)) * this.velocity * deltaTime;
+                this.x += Math.cos(Math.atan2(player.y - this.y, player.x - this.x)) * this.velocity * deltaTime;
+                this.velocity += this.acceleration * deltaTime * this.velocity;
+            }
+        }
+    }
+    render() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+}
 class enemy {
     constructor(x, y, width, height, speed = 5, damage = 5, color = "red") {
         this.x = x;
@@ -26,11 +61,28 @@ class enemy {
         this.angle = 0;
         this.health = 100;
         this.maxHealth = 100;
+        this.xpValue = 1;
     }
     update() {
         this.angle = Math.atan2(player.y - this.y, player.x - this.x);
-        this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed;
+        for (let ap = 0; ap < deltaTime * 100; ap++) {
+            let isCollidingX = false;
+            let isCollidingY = false;
+            for (const element of map.entities) {
+                if (element != this) {
+                    if (checkCollision(this, element)) {
+                        if (checkCollisionX(this, element)) {
+                            isCollidingX = true;
+                        }
+                        if (checkCollisionY(this, element)) {
+                            isCollidingY = true;
+                        }
+                    }
+                }
+            }
+            if (!isCollidingX) this.x += (Math.cos(this.angle) * this.speed) / 100;
+            if (!isCollidingY) this.y += (Math.sin(this.angle) * this.speed) / 100;
+        }
     }
     render() {
         ctx.fillStyle = this.color;
@@ -39,6 +91,14 @@ class enemy {
         ctx.fillRect(this.x, this.y - 10, this.width, 5);
         ctx.fillStyle = "lightgreen";
         ctx.fillRect(this.x, this.y - 10, (this.width / this.maxHealth) * this.health, 5);
+    }
+    collision(collider) {
+        if (collider.damage && this.health > 0) this.health -= collider.damage;
+        if (this.health <= 0) {
+            map.entities.splice(map.entities.indexOf(this), 1);
+            map.ghosts.push(new xp(this.x, this.y, collider.parent, this.xpValue));
+        }
+        console.log(this.health);
     }
 }
 class bullet {
@@ -57,7 +117,7 @@ class bullet {
         for (let ap = 0; ap < deltaTime * 100; ap++) {
             this.x += (Math.cos(this.angle) * this.speed) / 100;
             this.y += (Math.sin(this.angle) * this.speed) / 100;
-            for (let element of map.mapElements) {
+            for (let element of map.entities) {
                 if (checkCollision(this, element)) {
                     if (element.collision) element.collision(this);
                     map.projectiles.splice(map.projectiles.indexOf(this), 1);
@@ -76,8 +136,16 @@ function checkCollision(parent, element) {
     let hitboxY = parent.height > element.height ? parent.height / 2 : element.height / 2;
     return Math.abs(parent.x + parent.width / 2 - (element.x + element.width / 2)) < hitboxX && Math.abs(parent.y + parent.height / 2 - (element.y + element.height / 2)) < hitboxY;
 }
+function checkCollisionX(parent, element) {
+    let hitboxX = parent.width > element.width ? parent.width / 2 : element.width / 2;
+    return Math.abs(parent.x + parent.width / 2 - (element.x + element.width / 2)) < hitboxX;
+}
+function checkCollisionY(parent, element) {
+    let hitboxY = parent.height > element.height ? parent.height / 2 : element.height / 2;
+    return Math.abs(parent.y + parent.height / 2 - (element.y + element.height / 2)) < hitboxY;
+}
 class pistol {
-    constructor() {
+    constructor(parent) {
         this.x = 0;
         this.y = 0;
         this.width = 10;
@@ -87,6 +155,8 @@ class pistol {
         this.shotspeed = 500;
         this.lastShot = 0;
         this.damage = 15;
+        this.parent = parent;
+        this.range = 300;
     }
     render() {
         ctx.save();
@@ -150,21 +220,10 @@ class square {
         this.width = sx;
         this.height = sy;
         this.color = color;
-        this.maxHealth = 100;
-        this.health = 100;
     }
     render() {
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, this.width, this.height);
-        ctx.fillStyle = "lightcoral";
-        ctx.fillRect(this.x, this.y - 10, this.width, 5);
-        ctx.fillStyle = "lightgreen";
-        ctx.fillRect(this.x, this.y - 10, (this.width / this.maxHealth) * this.health, 5);
-    }
-    collision(collider) {
-        if (collider.damage && this.health > 0) this.health -= collider.damage;
-        if (this.health <= 0) map.mapElements.splice(map.mapElements.indexOf(this), 1);
-        console.log(this.health);
     }
 }
 class mapClass {
@@ -172,6 +231,7 @@ class mapClass {
         this.projectiles = [];
         this.entities = [];
         this.mapElements = [];
+        this.ghosts = [];
     }
 }
 class cameraClass {
@@ -194,8 +254,15 @@ class playerClass {
         this.height = 42;
         this.angle = 0;
         this.speed = 30;
+        this.health = 100;
+        this.maxHealth = 100;
+        this.xp = 0;
         this.baseTexture = baseTexture;
-        this.gun = new pistol();
+        this.weapons = {
+            pistol: new pistol(this),
+            rifle: new rifle(this),
+        };
+        this.gun = this.weapons.rifle;
     }
     update() {
         let diagnal = false;
@@ -254,7 +321,7 @@ function init() {
     map = new mapClass();
     // map.mapElements.push(new bush(100, 233));
     map.mapElements.push(new square(200, 200, 60, 60));
-    map.entities.push(new enemy(100, 100));
+    map.entities.push(new enemy(100, 100, 30, 30));
     camera.x = player.x;
     camera.y = player.y;
     camera.lastX = camera.x;
@@ -279,29 +346,27 @@ function loop() {
     lastLoop = performance.now();
     requestAnimationFrame(loop);
 }
-var weapons = {
-    pistol: new pistol(),
-    rifle: new rifle(),
-};
 function update() {
     // update player
     player.update();
     // update map elements
     for (let element of map.entities) if (element.update) element.update();
     for (let element of map.projectiles) if (element.update) element.update();
+    for (let element of map.ghosts) if (element.update) element.update();
 
-    if (keyPressed.includes("1")) player.gun = weapons.pistol;
-    else if (keyPressed.includes("2")) player.gun = weapons.rifle;
-    // shoot wepons
-    if (isMouseDown && performance.now() - player.gun.lastShot >= player.gun.shotspeed) {
-        player.gun.shoot();
-    }
+    if (keyPressed.includes("1")) player.gun = player.weapons.pistol;
+    else if (keyPressed.includes("2")) player.gun = player.weapons.rifle;
 
     // calculate player angle based on mouse position
     let canvasPosisitons = canvas.getBoundingClientRect();
     let playerPosx = canvasPosisitons.x + canvas.width / 2;
     let playerPosy = canvasPosisitons.y + canvas.height / 2;
     player.angle = Math.atan2(mouse.y - playerPosy, mouse.x - playerPosx);
+
+    // shoot wepons
+    if (isMouseDown && performance.now() - player.gun.lastShot >= player.gun.shotspeed) {
+        player.gun.shoot();
+    }
 }
 function render() {
     ctx.clearRect(camera.x, camera.y, canvas.width, canvas.height); // clear screen
@@ -317,12 +382,15 @@ function render() {
     for (let element of map.mapElements) if (element.render) element.render();
     for (let element of map.entities) if (element.render) element.render();
     for (let element of map.projectiles) if (element.render) element.render();
+    for (let element of map.ghosts) if (element.render) element.render();
     player.draw(); // render player
     renderHud(); // render hud
 }
 function renderHud() {
     text("FPS: " + Math.round(FPS * 100) / 100, camera.x + 10, camera.y + 25);
     text("DeltaTime: " + Math.round(deltaTime * 10000) / 100 + "ms", camera.x + 10, camera.y + 45);
+    text("Player HP: " + player.health, camera.x + 10, camera.y + 65);
+    text("Player XP: " + player.xp, camera.x + 10, camera.y + 85);
 }
 function addListeners() {
     var select = document.getElementById("resolution");
@@ -338,6 +406,8 @@ function addListeners() {
         var key = e.key.toLowerCase();
         if (!keyPressed.includes(key)) keyPressed.push(key);
         console.log(keyPressed);
+        if (key == "q") spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
+        if (key == "e") spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
     });
     window.addEventListener("keyup", (e) => {
         var key = e.key.toLowerCase();
@@ -369,7 +439,25 @@ function text(text, x, y, color = "white", size = 20) {
     ctx.fillText(text, x, y);
     ctx.fillStyle = tmp;
 }
-function shootProjectile(x, y, angle, velocity, parent) {
-    let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity);
+function shootProjectile(x, y, angle, velocity, parent, damage) {
+    let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity, damage);
     map.projectiles.push(bulet);
+}
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function dystans(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+}
+function spawnEnemy1(x, y) {
+    map.entities.push(new enemy(x, y, 30, 30));
+}
+function spawnEnemy2(x, y) {
+    let en = new enemy(x, y, 30, 30);
+    en.maxHealth = 150;
+    en.health = 150;
+    en.speed = 1;
+    en.color = "blue";
+    en.xpValue = 5;
+    map.entities.push(en);
 }
