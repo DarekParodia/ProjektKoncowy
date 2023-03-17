@@ -50,47 +50,37 @@ class xp {
     }
 }
 class enemy {
-    constructor(x, y, width, height, speed = 5, damage = 5, color = "red") {
+    constructor(x, y, width, height, speed = 0, damage = 5, color = "red") {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        this.speed = speed;
+        this.speed = speed / 100;
         this.damage = damage;
         this.color = color;
         this.angle = 0;
+        this.vx = (Math.cos(this.angle) * speed) / 100;
+        this.vy = (Math.sin(this.angle) * speed) / 100;
         this.health = 100;
         this.maxHealth = 100;
         this.xpValue = 1;
     }
     update() {
-        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
-        for (let ap = 0; ap < deltaTime * 100; ap++) {
-            let isCollidingX = false;
-            let isCollidingY = false;
-            for (const element of map.entities) {
-                if (element != this) {
-                    if (checkCollision(this, element)) {
-                        if (checkCollisionX(this, element)) {
-                            isCollidingX = true;
-                        }
-                        if (checkCollisionY(this, element)) {
-                            isCollidingY = true;
-                        }
-                    }
-                }
-            }
-            if (!isCollidingX) this.x += (Math.cos(this.angle) * this.speed) / 100;
-            if (!isCollidingY) this.y += (Math.sin(this.angle) * this.speed) / 100;
-        }
+        // this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        // this.vx = Math.cos(this.angle) * this.speed;
+        // this.vy = Math.sin(this.angle) * this.speed;
+        this.x += this.vx * deltaTime;
+        this.y += this.vy * deltaTime;
     }
     render() {
+        let x = this.x - this.width / 2;
+        let y = this.y - this.height / 2;
         ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillRect(x, y, this.width, this.height);
         ctx.fillStyle = "lightcoral";
-        ctx.fillRect(this.x, this.y - 10, this.width, 5);
+        ctx.fillRect(x, y - 10, this.width, 5);
         ctx.fillStyle = "lightgreen";
-        ctx.fillRect(this.x, this.y - 10, (this.width / this.maxHealth) * this.health, 5);
+        ctx.fillRect(x, y - 10, (this.width / this.maxHealth) * this.health, 5);
     }
     collision(collider) {
         if (collider.damage && this.health > 0) this.health -= collider.damage;
@@ -105,8 +95,12 @@ class bullet {
     constructor(parent, x, y, angle, speed = 10, damage = 5, color = "yellow") {
         this.x = x;
         this.y = y;
+        this.vx = (Math.cos(angle) * speed) / 10;
+        this.vy = (Math.sin(angle) * speed) / 10;
+        this.isColliding = false;
         this.angle = angle;
-        this.speed = speed;
+        this.speed = speed / 10;
+        this.mass = 1;
         this.color = color;
         this.width = 5;
         this.height = 5;
@@ -114,27 +108,32 @@ class bullet {
         this.damage = damage;
     }
     update() {
-        for (let ap = 0; ap < deltaTime * 100; ap++) {
-            this.x += (Math.cos(this.angle) * this.speed) / 100;
-            this.y += (Math.sin(this.angle) * this.speed) / 100;
-            for (let element of map.entities) {
-                if (checkCollision(this, element)) {
-                    if (element.collision) element.collision(this);
-                    map.projectiles.splice(map.projectiles.indexOf(this), 1);
-                    return;
-                }
-            }
+        this.x += this.vx * deltaTime;
+        this.y += this.vy * deltaTime;
+        if (this.isColliding) {
         }
     }
     render() {
+        let x = this.x - this.width / 2;
+        let y = this.y - this.height / 2;
         ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, 5, 5);
+        ctx.fillRect(x, y, 5, 5);
     }
 }
 function checkCollision(parent, element) {
     let hitboxX = parent.width > element.width ? parent.width / 2 : element.width / 2;
     let hitboxY = parent.height > element.height ? parent.height / 2 : element.height / 2;
     return Math.abs(parent.x + parent.width / 2 - (element.x + element.width / 2)) < hitboxX && Math.abs(parent.y + parent.height / 2 - (element.y + element.height / 2)) < hitboxY;
+    // let a = parent;
+    // let b = element;
+    // return !(a.y + a.height < b.y || a.y > b.y + b.height || a.x + a.width < b.x || a.x > b.x + b.width);
+    // return rectIntersect(parent.x, parent.y, parent.width, parent.height, element.x, element.y, element.width, element.height);
+}
+function rectIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
+    if (x2 > w1 + x1 || x1 > w2 + x2 || y2 > h1 + y1 || y1 > h2 + y2) {
+        return false;
+    }
+    return true;
 }
 function checkCollisionX(parent, element) {
     let hitboxX = parent.width > element.width ? parent.width / 2 : element.width / 2;
@@ -151,7 +150,7 @@ class pistol {
         this.width = 10;
         this.height = 10;
         this.angle = 0;
-        this.velocity = 50;
+        this.velocity = 1;
         this.shotspeed = 500;
         this.lastShot = 0;
         this.damage = 15;
@@ -179,7 +178,7 @@ class rifle {
         this.width = 10;
         this.height = 10;
         this.angle = 0;
-        this.velocity = 130;
+        this.velocity = 2;
         this.shotspeed = 190;
         this.lastShot = 0;
         this.damage = 5;
@@ -268,16 +267,16 @@ class playerClass {
         let diagnal = false;
         if ((keyPressed.includes("w") && keyPressed.includes("a")) || (keyPressed.includes("w") && keyPressed.includes("d")) || (keyPressed.includes("s") && keyPressed.includes("a")) || (keyPressed.includes("s") && keyPressed.includes("d"))) diagnal = true;
         if (keyPressed.includes("w")) {
-            this.y -= diagnal ? this.speed * 0.75 * deltaTime : this.speed * deltaTime;
+            this.y -= diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
         }
         if (keyPressed.includes("a")) {
-            this.x -= diagnal ? this.speed * 0.75 * deltaTime : this.speed * deltaTime;
+            this.x -= diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
         }
         if (keyPressed.includes("s")) {
-            this.y += diagnal ? this.speed * 0.75 * deltaTime : this.speed * deltaTime;
+            this.y += diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
         }
         if (keyPressed.includes("d")) {
-            this.x += diagnal ? this.speed * 0.75 * deltaTime : this.speed * deltaTime;
+            this.x += diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
         }
         camera.x = this.x - camera.offsetX + resDiffX;
         camera.y = this.y - camera.offsetY + resDiffY;
@@ -336,7 +335,7 @@ var FPS = 0;
 function loop() {
     deltaTime = performance.now() - lastLoop;
     FPS = 1000 / deltaTime;
-    deltaTime = deltaTime / 100;
+    deltaTime = deltaTime;
     // if (performance.now() - lastd > 100) {
     update();
     lastd = performance.now();
@@ -344,6 +343,7 @@ function loop() {
     render();
 
     lastLoop = performance.now();
+    // console.log(map.entities[0].collidingFrom);
     requestAnimationFrame(loop);
 }
 function update() {
@@ -367,6 +367,42 @@ function update() {
     if (isMouseDown && performance.now() - player.gun.lastShot >= player.gun.shotspeed) {
         player.gun.shoot();
     }
+    // detect collisiosn
+    for (let element of map.entities) {
+        element.isColliding = false;
+    }
+    for (let element of map.projectiles) {
+        element.isColliding = false;
+    }
+    let mapEntitiesLenght = Object.keys(map.entities).length;
+    let projectilesLenght = Object.keys(map.projectiles).length;
+    for (let i = 0; i < mapEntitiesLenght; i++) {
+        let parent = map.entities[i];
+        for (let j = i; j < projectilesLenght; j++) {
+            let child = map.projectiles[j];
+            if (checkCollision(parent, child)) {
+                console.log("Collision");
+                parent.isColliding = true;
+                child.isColliding = true;
+                if (!parent.ignorePhysics && !child.ignorePhysics) {
+                    let obj1 = parent;
+                    let obj2 = child;
+                    let vCollision = {x: obj2.x - obj1.x, y: obj2.y - obj1.y};
+                    let distance = Math.sqrt((obj2.x - obj1.x) * (obj2.x - obj1.x) + (obj2.y - obj1.y) * (obj2.y - obj1.y));
+                    let vCollisionNorm = {x: vCollision.x / distance, y: vCollision.y / distance};
+                    let vRelativeVelocity = {x: obj1.vx - obj2.vx, y: obj1.vy - obj2.vy};
+                    let speed = vRelativeVelocity.x * vCollisionNorm.x + vRelativeVelocity.y * vCollisionNorm.y;
+                    // if (speed < 0) {
+                    //     break;
+                    // }
+                    obj1.vx -= speed * vCollisionNorm.x;
+                    obj1.vy -= speed * vCollisionNorm.y;
+                    obj2.vx += speed * vCollisionNorm.x;
+                    obj2.vy += speed * vCollisionNorm.y;
+                }
+            }
+        }
+    }
 }
 function render() {
     ctx.clearRect(camera.x, camera.y, canvas.width, canvas.height); // clear screen
@@ -388,7 +424,7 @@ function render() {
 }
 function renderHud() {
     text("FPS: " + Math.round(FPS * 100) / 100, camera.x + 10, camera.y + 25);
-    text("DeltaTime: " + Math.round(deltaTime * 10000) / 100 + "ms", camera.x + 10, camera.y + 45);
+    text("DeltaTime: " + Math.round(deltaTime * 100) / 100 + "ms", camera.x + 10, camera.y + 45);
     text("Player HP: " + player.health, camera.x + 10, camera.y + 65);
     text("Player XP: " + player.xp, camera.x + 10, camera.y + 85);
 }
