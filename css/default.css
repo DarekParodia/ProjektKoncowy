@@ -94,39 +94,6 @@ aside{
     padding-right: 20px;
     padding-top: 10px;
 }
-@media all and (min-width: 1500px){
-    aside{
-        width: 100%;
-        max-width: var(--aside-max-width);
-    }
-    main{
-        left:  calc(var(--aside-max-width) + 40px) !important;
-        width: calc(100% - var(--aside-max-width) - 40);
-    }
-}
-@media all and (max-width: 960px){
-    .menu{
-        display: none;
-    }
-    aside{
-        display: none;
-    }
-    main{
-        left: 0 !important;
-        width: 100%;
-    }
-    .mobileMenu{
-        display: flex !important;
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        align-items: flex-end;
-        align-content: center;
-        align-self: center;
-        width: 100%;
-    }
-
-}
 .mobileMenu{
     display: none;
 }
@@ -210,8 +177,7 @@ aside{
 main{
     position: absolute;
     top: 60px;
-    left: calc(var(--aside-width) + 40px);
-    width: calc(100% - var(--aside-width) - 40px);
+    width: 100%;
     -moz-box-sizing: border-box; 
     -webkit-box-sizing: border-box; 
      box-sizing: border-box; 

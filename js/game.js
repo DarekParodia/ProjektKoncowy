@@ -14,6 +14,7 @@ var mouse = {
     x: 0,
     y: 0,
 };
+var objectsToDelete = [];
 class xp {
     constructor(x, y, owner, value = 1) {
         this.x = x;
@@ -21,12 +22,12 @@ class xp {
         this.width = 5;
         this.height = 5;
         this.color = "green";
-        this.acceleration = 0.15;
-        this.velocity = 1;
+        this.acceleration = 0.01;
+        this.velocity = 0.0001;
         this.owner = owner;
         this.bornTime = performance.now();
         this.xpValue = value;
-        this.minDistance = 100;
+        this.minDistance = 200;
         this.following = false;
         console.log("xp spawned at: ", x, y);
     }
@@ -50,27 +51,28 @@ class xp {
     }
 }
 class enemy {
-    constructor(x, y, width, height, speed = 0, damage = 5, color = "red") {
+    constructor(x, y, width, height, damage = 5, color = "red") {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        this.speed = speed / 100;
+        this.drag = 1.01;
         this.damage = damage;
         this.color = color;
         this.angle = 0;
-        this.vx = (Math.cos(this.angle) * speed) / 100;
-        this.vy = (Math.sin(this.angle) * speed) / 100;
+        this.mass = 50;
+        this.vx = 0;
+        this.vy = 0;
         this.health = 100;
         this.maxHealth = 100;
         this.xpValue = 1;
     }
     update() {
-        // this.angle = Math.atan2(player.y - this.y, player.x - this.x);
-        // this.vx = Math.cos(this.angle) * this.speed;
-        // this.vy = Math.sin(this.angle) * this.speed;
-        this.x += this.vx * deltaTime;
-        this.y += this.vy * deltaTime;
+        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        this.vx = this.vx / this.drag;
+        this.vy = this.vy / this.drag;
+        this.x += this.vx * deltaTime + Math.cos(this.angle);
+        this.y += this.vy * deltaTime + Math.sin(this.angle);
     }
     render() {
         let x = this.x - this.width / 2;
@@ -81,18 +83,23 @@ class enemy {
         ctx.fillRect(x, y - 10, this.width, 5);
         ctx.fillStyle = "lightgreen";
         ctx.fillRect(x, y - 10, (this.width / this.maxHealth) * this.health, 5);
+        ctx.beginPath();
+        ctx.strokeStyle = "white";
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + this.vx * 100, this.y + this.vy * 100);
+        ctx.stroke();
     }
     collision(collider) {
         if (collider.damage && this.health > 0) this.health -= collider.damage;
         if (this.health <= 0) {
-            map.entities.splice(map.entities.indexOf(this), 1);
+            objectsToDelete.push({array: map.entities, object: this});
             map.ghosts.push(new xp(this.x, this.y, collider.parent, this.xpValue));
         }
         console.log(this.health);
     }
 }
 class bullet {
-    constructor(parent, x, y, angle, speed = 10, damage = 5, color = "yellow") {
+    constructor(parent, x, y, angle, speed = 10, mass = 1, damage = 5, color = "yellow") {
         this.x = x;
         this.y = y;
         this.vx = (Math.cos(angle) * speed) / 10;
@@ -100,17 +107,21 @@ class bullet {
         this.isColliding = false;
         this.angle = angle;
         this.speed = speed / 10;
-        this.mass = 1;
+        this.mass = mass;
         this.color = color;
         this.width = 5;
         this.height = 5;
         this.parent = parent;
         this.damage = damage;
+        this.lifeTime = 5000;
+        this.creationTime = Date.now();
     }
     update() {
         this.x += this.vx * deltaTime;
         this.y += this.vy * deltaTime;
-        if (this.isColliding) {
+        if (this.creationTime + this.lifeTime <= Date.now()) {
+            objectsToDelete.push({array: map.projectiles, object: this});
+            console.log("time limit reached");
         }
     }
     render() {
@@ -118,12 +129,20 @@ class bullet {
         let y = this.y - this.height / 2;
         ctx.fillStyle = this.color;
         ctx.fillRect(x, y, 5, 5);
+        ctx.beginPath();
+        ctx.strokeStyle = "white";
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + this.vx * 150, this.y + this.vy * 150);
+        ctx.stroke();
+    }
+    collision() {
+        objectsToDelete.push({array: map.projectiles, object: this});
     }
 }
 function checkCollision(parent, element) {
     let hitboxX = parent.width > element.width ? parent.width / 2 : element.width / 2;
     let hitboxY = parent.height > element.height ? parent.height / 2 : element.height / 2;
-    return Math.abs(parent.x + parent.width / 2 - (element.x + element.width / 2)) < hitboxX && Math.abs(parent.y + parent.height / 2 - (element.y + element.height / 2)) < hitboxY;
+    return Math.abs(parent.x - element.x) < hitboxX && Math.abs(parent.y - element.y) < hitboxY;
     // let a = parent;
     // let b = element;
     // return !(a.y + a.height < b.y || a.y > b.y + b.height || a.x + a.width < b.x || a.x > b.x + b.width);
@@ -156,6 +175,7 @@ class pistol {
         this.damage = 15;
         this.parent = parent;
         this.range = 300;
+        this.projectileMass = 10;
     }
     render() {
         ctx.save();
@@ -168,7 +188,7 @@ class pistol {
     update() {}
     shoot() {
         this.lastShot = performance.now();
-        shootProjectile(this.x, this.y, this.angle, this.velocity, this.parent, this.damage);
+        shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
     }
 }
 class rifle {
@@ -183,6 +203,7 @@ class rifle {
         this.lastShot = 0;
         this.damage = 5;
         this.parent = parent;
+        this.projectileMass = 1;
     }
     render() {
         ctx.save();
@@ -195,7 +216,7 @@ class rifle {
     update() {}
     shoot() {
         this.lastShot = performance.now();
-        shootProjectile(this.x, this.y, this.angle, this.velocity, this.parent, this.damage);
+        shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
     }
 }
 
@@ -392,17 +413,26 @@ function update() {
                     let vCollisionNorm = {x: vCollision.x / distance, y: vCollision.y / distance};
                     let vRelativeVelocity = {x: obj1.vx - obj2.vx, y: obj1.vy - obj2.vy};
                     let speed = vRelativeVelocity.x * vCollisionNorm.x + vRelativeVelocity.y * vCollisionNorm.y;
-                    // if (speed < 0) {
-                    //     break;
-                    // }
-                    obj1.vx -= speed * vCollisionNorm.x;
-                    obj1.vy -= speed * vCollisionNorm.y;
-                    obj2.vx += speed * vCollisionNorm.x;
-                    obj2.vy += speed * vCollisionNorm.y;
+                    if (speed < 0) {
+                        break;
+                    }
+                    let impulse = (2 * speed) / (obj1.mass + obj2.mass);
+                    obj1.vx -= impulse * obj2.mass * vCollisionNorm.x;
+                    obj1.vy -= impulse * obj2.mass * vCollisionNorm.y;
+                    obj2.vx += impulse * obj1.mass * vCollisionNorm.x;
+                    obj2.vy += impulse * obj1.mass * vCollisionNorm.y;
+                    if (parent.collision) parent.collision(child);
+                    if (child.collision) child.collision(parent);
                 }
             }
         }
     }
+    objectsToDelete.forEach((element) => {
+        try {
+            element.array.splice(element.array.indexOf(element.object), 1);
+        } catch (e) {}
+    });
+    objectsToDelete = [];
 }
 function render() {
     ctx.clearRect(camera.x, camera.y, canvas.width, canvas.height); // clear screen
@@ -475,8 +505,8 @@ function text(text, x, y, color = "white", size = 20) {
     ctx.fillText(text, x, y);
     ctx.fillStyle = tmp;
 }
-function shootProjectile(x, y, angle, velocity, parent, damage) {
-    let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity, damage);
+function shootProjectile(x, y, angle, velocity, mass, parent, damage) {
+    let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity, mass, damage);
     map.projectiles.push(bulet);
 }
 function randomInt(min, max) {
