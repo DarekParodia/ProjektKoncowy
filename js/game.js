@@ -346,8 +346,7 @@ function init() {
     camera.y = player.y;
     camera.lastX = camera.x;
     camera.lastY = camera.y;
-    oldResX = canvas.width;
-    oldResY = canvas.height;
+    windowResize();
     requestAnimationFrame(loop);
 }
 var lastLoop = 0;
@@ -435,7 +434,7 @@ function update() {
     objectsToDelete = [];
 }
 function render() {
-    ctx.clearRect(camera.x, camera.y, canvas.width, canvas.height); // clear screen
+    ctx.clearRect(camera.x - 100, camera.y - 100, canvas.width + 100, canvas.height + 100); // clear screen
     if (camera.x != camera.lastX || camera.y != camera.lastY) {
         // move camera
         let cameraDeltaX = camera.x - camera.lastX;
@@ -459,15 +458,6 @@ function renderHud() {
     text("Player XP: " + player.xp, camera.x + 10, camera.y + 85);
 }
 function addListeners() {
-    var select = document.getElementById("resolution");
-    select.addEventListener("change", (e) => {
-        var value = e.target.value;
-        var width = value.split("x")[0];
-        var height = value.split("x")[1];
-        canvas.width = width;
-        canvas.height = height;
-        onCanvasChange();
-    });
     window.addEventListener("keydown", (e) => {
         var key = e.key.toLowerCase();
         if (!keyPressed.includes(key)) keyPressed.push(key);
@@ -490,8 +480,15 @@ function addListeners() {
     window.addEventListener("mouseup", (e) => {
         isMouseDown = false;
     });
+    window.addEventListener("resize", windowResize);
 }
-function onCanvasChange() {
+function windowResize() {
+    oldResX = canvas.width;
+    oldResY = canvas.height;
+    let main = document.getElementById("main");
+    canvas.width = main.clientWidth;
+    canvas.height = window.innerHeight - 60;
+
     ctx.translate(-camera.x, -camera.y);
     resDiffX = (864 - canvas.width) / 2;
     resDiffY = (480 - canvas.height) / 2;

@@ -1,0 +1,15 @@
+main{
+    margin: 0px !important; 
+    padding: 0px !important;
+    background-color: aqua;
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+}
+canvas{
+    display: block;
+    margin: 0px auto;
+    background-color: #000;
+}
+body, main{
+    overflow: hidden;
+}

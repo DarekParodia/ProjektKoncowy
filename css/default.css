@@ -211,10 +211,6 @@ select{
     border-radius: 6px;
     padding-bottom: 2px;
 }
-canvas{
-    margin: 20px;
-    border: solid 1px aqua;
-}
 #gameidbtn{
     background-color: var(--passive-color);
     height: 31px;

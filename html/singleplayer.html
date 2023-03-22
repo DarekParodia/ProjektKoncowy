@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Singleplayer</title>
     <link rel="stylesheet" href="../css/default.css">
+    <link rel="stylesheet" href="../css/game.css">
     <link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
     <script src="../js/game.js"></script>
 </head>
@@ -39,28 +40,9 @@
             </div>
         </div>
     </header>
-    <div>
-        <main class="flxcntr">
-            <h1 class="center">Singleplayer</h1>
-            <div>
-                <label for="resolution" class="mrgleft">Roździelczość: </label>
-                <select name="resolution" id="resolution">
-                    <option value="854x480">854x480</option>
-                    <option value="960x540">960x540</option>
-                    <option value="1024x576">1024x576</option>
-                    <option value="1280x720">1280x720</option>
-                    <option value="1920x1080">1920x1080</option>
-                </select>
-                <br>
-                <canvas id="gamecanvas"></canvas>
-            </div>
-            <h3>
-                Klawisz "1": pistolet
-            </h3>
-            <h3> Klawisz "2": karabin</h3>
-        </main>
-    </div>
-
+    <main id="main">
+        <canvas id="gamecanvas"></canvas>
+    </main>
 </body>
 
 </html>
