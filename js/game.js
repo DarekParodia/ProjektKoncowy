@@ -184,6 +184,8 @@ class pistol {
         this.parent = parent;
         this.range = 300;
         this.projectileMass = 10;
+        this.ammo = 8;
+        this.maxAmmo = 8;
     }
     render() {
         ctx.save();
@@ -195,8 +197,11 @@ class pistol {
     }
     update() {}
     shoot() {
-        this.lastShot = performance.now();
-        shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
+        if (this.ammo > 0) {
+            this.ammo--;
+            this.lastShot = performance.now();
+            shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
+        }
     }
 }
 class rifle {
@@ -212,6 +217,9 @@ class rifle {
         this.damage = 5;
         this.parent = parent;
         this.projectileMass = 1;
+        this.ammo = 20;
+        this.maxAmmo = 20;
+        this.reloadingTime = 2000;
     }
     render() {
         ctx.save();
@@ -221,10 +229,22 @@ class rifle {
         ctx.fillRect(20, -5, 20, 10);
         ctx.restore();
     }
-    update() {}
+    update() {
+        if (keyPressed.includes("r") && this.anni <= 0) {
+            this.isReloading = true;
+            this.lastReload = performance.now();
+        }
+        if (this.ammo <= 0 && performance.now() - this.lastReload > this.reloadingTime) {
+            this.ammo = this.maxAmmo;
+            this.isReloading = false;
+        }
+    }
     shoot() {
-        this.lastShot = performance.now();
-        shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
+        if (this.ammo > 0) {
+            this.lastShot = performance.now();
+            this.ammo--;
+            shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
+        }
     }
 }
 
@@ -294,6 +314,7 @@ class playerClass {
         this.isColliding = false;
     }
     update() {
+        this.gun.update();
         let diagnal = false;
         if ((keyPressed.includes("w") && keyPressed.includes("a")) || (keyPressed.includes("w") && keyPressed.includes("d")) || (keyPressed.includes("s") && keyPressed.includes("a")) || (keyPressed.includes("s") && keyPressed.includes("d"))) diagnal = true;
         if (keyPressed.includes("w")) {
@@ -480,6 +501,17 @@ function renderHud() {
     ctx.fillStyle = "lightgreen";
     ctx.fillRect(camera.x, camera.y + canvas.height - 20, ((canvas.width * 0.3) / player.maxHealth) * player.health, 15);
     text(player.health + " / " + player.maxHealth, camera.x, camera.y + canvas.height - 25);
+
+    // player ammo
+    ctx.fillStyle = "yellow";
+    let tempxa = ((canvas.height * 0.3) / player.gun.maxAmmo) * player.gun.ammo;
+    ctx.fillRect(camera.x + canvas.width - 40, camera.y + canvas.height - tempxa - 5, 25, tempxa);
+    let textOffest = getTextWidth(player.gun.ammo + " / " + player.gun.maxAmmo);
+    if (player.gun.isReloading) text("Reloading...", camera.x + canvas.width - 60 - textOffest, camera.y + canvas.height - 10);
+    else text(player.gun.ammo + " / " + player.gun.maxAmmo, camera.x + canvas.width - 40 - textOffest, camera.y + canvas.height - 10);
+}
+function getTextWidth(text) {
+    return text.length * 10;
 }
 function addListeners() {
     window.addEventListener("keydown", (e) => {
