@@ -3,6 +3,7 @@ var ctx;
 var keyPressed = [];
 var textures = {
     obamna: new Image(20, 20),
+    smutnyobama: new Image(20, 20),
 };
 var oldResX = 0;
 var oldResY = 0;
@@ -283,6 +284,7 @@ class playerClass {
             rifle: new rifle(this),
         };
         this.gun = this.weapons.rifle;
+        this.isColliding = false;
     }
     update() {
         let diagnal = false;
@@ -301,6 +303,9 @@ class playerClass {
         }
         camera.x = this.x - camera.offsetX + resDiffX;
         camera.y = this.y - camera.offsetY + resDiffY;
+        this.isColliding = true;
+        if (this.isColliding) this.baseTexture = textures.smutnyobama;
+        else this.baseTexture = textures.obamna;
     }
     draw() {
         let degreeAngle = this.angle * (180 / Math.PI);
@@ -334,6 +339,7 @@ function init() {
     addListeners();
     // import images
     textures.obamna.src = "../img/obamna.jpg";
+    textures.smutnyobama.src = "../img/obamasmutny.jpg";
     player = new playerClass(0, 0);
     camera = new cameraClass();
     camera.offsetX = canvas.width / 2;
