@@ -230,7 +230,7 @@ class rifle {
         ctx.restore();
     }
     update() {
-        if (keyPressed.includes("r") && this.anni <= 0) {
+        if (keyPressed.includes("r") && this.ammo <= 0) {
             this.isReloading = true;
             this.lastReload = performance.now();
         }
