@@ -67,6 +67,8 @@ class enemy {
         this.health = 100;
         this.maxHealth = 100;
         this.xpValue = 1;
+        this.lastAttack = performance.now();
+        this.attackCooldown = 1000;
     }
     update() {
         this.angle = Math.atan2(player.y - this.y, player.x - this.x);
@@ -91,12 +93,17 @@ class enemy {
         ctx.stroke();
     }
     collision(collider) {
-        if (collider.damage && this.health > 0) this.health -= collider.damage;
+        if (collider.damage && this.health > 0 && collider instanceof bullet) this.health -= collider.damage;
         if (this.health <= 0) {
             objectsToDelete.push({array: map.entities, object: this});
             map.ghosts.push(new xp(this.x, this.y, collider.parent, this.xpValue));
         }
         console.log(this.health);
+        if (collider instanceof playerClass && performance.now() - this.lastAttack > this.attackCooldown) {
+            collider.health -= this.damage;
+            this.lastAttack = performance.now();
+            console.log("attack");
+        }
     }
 }
 class bullet {
@@ -141,8 +148,8 @@ class bullet {
     }
 }
 function checkCollision(parent, element) {
-    let hitboxX = parent.width > element.width ? parent.width / 2 : element.width / 2;
-    let hitboxY = parent.height > element.height ? parent.height / 2 : element.height / 2;
+    let hitboxX = parent.width > element.width ? parent.width : element.width;
+    let hitboxY = parent.height > element.height ? parent.height : element.height;
     return Math.abs(parent.x - element.x) < hitboxX && Math.abs(parent.y - element.y) < hitboxY;
     // let a = parent;
     // let b = element;
@@ -303,7 +310,6 @@ class playerClass {
         }
         camera.x = this.x - camera.offsetX + resDiffX;
         camera.y = this.y - camera.offsetY + resDiffY;
-        this.isColliding = true;
         if (this.isColliding) this.baseTexture = textures.smutnyobama;
         else this.baseTexture = textures.obamna;
     }
@@ -359,25 +365,16 @@ var lastLoop = 0;
 var lastd = performance.now();
 var FPS = 0;
 function loop() {
-    deltaTime = performance.now() - lastLoop;
+    deltaTime = Date.now() - lastLoop;
     FPS = 1000 / deltaTime;
-    deltaTime = deltaTime;
-    // if (performance.now() - lastd > 100) {
+    lastLoop = Date.now();
     update();
-    lastd = performance.now();
-    // }
     render();
-
-    lastLoop = performance.now();
     // console.log(map.entities[0].collidingFrom);
     requestAnimationFrame(loop);
 }
 function update() {
-    // update player
-    player.update();
     // update map elements
-    for (let element of map.entities) if (element.update) element.update();
-    for (let element of map.projectiles) if (element.update) element.update();
     for (let element of map.ghosts) if (element.update) element.update();
 
     if (keyPressed.includes("1")) player.gun = player.weapons.pistol;
@@ -395,11 +392,14 @@ function update() {
     }
     // detect collisiosn
     for (let element of map.entities) {
+        if (element.update) element.update();
         element.isColliding = false;
     }
     for (let element of map.projectiles) {
+        if (element.update) element.update();
         element.isColliding = false;
     }
+    player.isColliding = false;
     let mapEntitiesLenght = Object.keys(map.entities).length;
     let projectilesLenght = Object.keys(map.projectiles).length;
     for (let i = 0; i < mapEntitiesLenght; i++) {
@@ -431,6 +431,14 @@ function update() {
                 }
             }
         }
+        let child = player;
+        if (checkCollision(parent, child)) {
+            console.log("Collision To Player");
+            parent.isColliding = true;
+            child.isColliding = true;
+            if (parent.collision) parent.collision(child);
+            if (child.collision) child.collision(parent);
+        }
     }
     objectsToDelete.forEach((element) => {
         try {
@@ -438,6 +446,8 @@ function update() {
         } catch (e) {}
     });
     objectsToDelete = [];
+    // update player
+    player.update();
 }
 function render() {
     ctx.clearRect(camera.x - 100, camera.y - 100, canvas.width + 100, canvas.height + 100); // clear screen
@@ -449,12 +459,13 @@ function render() {
         camera.lastX = camera.x;
         camera.lastY = camera.y;
     }
+    player.draw(); // render player
     // render all object in map
     for (let element of map.mapElements) if (element.render) element.render();
     for (let element of map.entities) if (element.render) element.render();
     for (let element of map.projectiles) if (element.render) element.render();
     for (let element of map.ghosts) if (element.render) element.render();
-    player.draw(); // render player
+
     renderHud(); // render hud
 }
 function renderHud() {
@@ -462,6 +473,13 @@ function renderHud() {
     text("DeltaTime: " + Math.round(deltaTime * 100) / 100 + "ms", camera.x + 10, camera.y + 45);
     text("Player HP: " + player.health, camera.x + 10, camera.y + 65);
     text("Player XP: " + player.xp, camera.x + 10, camera.y + 85);
+
+    // player health
+    ctx.fillStyle = "lightcoral";
+    ctx.fillRect(camera.x, camera.y + canvas.height - 20, canvas.width * 0.3, 15);
+    ctx.fillStyle = "lightgreen";
+    ctx.fillRect(camera.x, camera.y + canvas.height - 20, ((canvas.width * 0.3) / player.maxHealth) * player.health, 15);
+    text(player.health + " / " + player.maxHealth, camera.x, camera.y + canvas.height - 25);
 }
 function addListeners() {
     window.addEventListener("keydown", (e) => {
@@ -501,7 +519,7 @@ function windowResize() {
     oldResX = canvas.width;
     oldResY = canvas.height;
 }
-function text(text, x, y, color = "white", size = 20) {
+function text(text, x, y, size = 20, color = "white") {
     let tmp = ctx.fillStyle;
     ctx.fillStyle = color;
     ctx.font = size + "px Arial";
