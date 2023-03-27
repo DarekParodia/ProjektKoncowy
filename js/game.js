@@ -138,10 +138,10 @@ class bullet {
         ctx.fillStyle = this.color;
         ctx.fillRect(x, y, 5, 5);
         ctx.beginPath();
-        ctx.strokeStyle = "white";
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x + this.vx * 150, this.y + this.vy * 150);
-        ctx.stroke();
+        // ctx.strokeStyle = "white";
+        // ctx.moveTo(this.x, this.y);
+        // ctx.lineTo(this.x + this.vx * 150, this.y + this.vy * 150);
+        // ctx.stroke();
     }
     collision() {
         objectsToDelete.push({array: map.projectiles, object: this});
@@ -170,55 +170,21 @@ function checkCollisionY(parent, element) {
     let hitboxY = parent.height > element.height ? parent.height / 2 : element.height / 2;
     return Math.abs(parent.y + parent.height / 2 - (element.y + element.height / 2)) < hitboxY;
 }
-class pistol {
-    constructor(parent) {
-        this.x = 0;
-        this.y = 0;
-        this.width = 10;
-        this.height = 10;
-        this.angle = 0;
-        this.velocity = 1;
-        this.shotspeed = 500;
-        this.lastShot = 0;
-        this.damage = 15;
-        this.parent = parent;
-        this.range = 300;
-        this.projectileMass = 10;
-        this.ammo = 8;
-        this.maxAmmo = 8;
-    }
-    render() {
-        ctx.save();
-        ctx.fillStyle = "magenta";
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
-        ctx.fillRect(20, -5, 10, 10);
-        ctx.restore();
-    }
-    update() {}
-    shoot() {
-        if (this.ammo > 0) {
-            this.ammo--;
-            this.lastShot = performance.now();
-            shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
-        }
-    }
-}
 class rifle {
     constructor(parent) {
         this.x = 0;
         this.y = 0;
-        this.width = 10;
+        this.width = 20;
         this.height = 10;
         this.angle = 0;
-        this.velocity = 2;
+        this.velocity = 8;
         this.shotspeed = 190;
         this.lastShot = 0;
         this.damage = 5;
         this.parent = parent;
-        this.projectileMass = 1;
-        this.ammo = 20;
-        this.maxAmmo = 20;
+        this.projectileMass = 0.2;
+        this.ammo = 30;
+        this.maxAmmo = 30;
         this.reloadingTime = 2000;
     }
     render() {
@@ -226,24 +192,25 @@ class rifle {
         ctx.fillStyle = "red";
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
-        ctx.fillRect(20, -5, 20, 10);
+        ctx.fillRect(20, -5, this.width, this.height);
         ctx.restore();
     }
     update() {
-        if (keyPressed.includes("r") && this.ammo <= 0) {
+        if (keyPressed.includes("r") && !this.isReloading && this.ammo < this.maxAmmo) {
             this.isReloading = true;
             this.lastReload = performance.now();
         }
-        if (this.ammo <= 0 && performance.now() - this.lastReload > this.reloadingTime) {
+        if (performance.now() - this.lastReload > this.reloadingTime && this.isReloading) {
             this.ammo = this.maxAmmo;
             this.isReloading = false;
         }
     }
     shoot() {
-        if (this.ammo > 0) {
+        if (this.ammo > 0 && !this.isReloading) {
             this.lastShot = performance.now();
             this.ammo--;
             shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
+            console.log(this);
         }
     }
 }
@@ -305,11 +272,20 @@ class playerClass {
         this.health = 100;
         this.maxHealth = 100;
         this.xp = 0;
+        this.xpToNextLevel = 10;
         this.baseTexture = baseTexture;
         this.weapons = {
-            pistol: new pistol(this),
+            pistol: new rifle(this),
             rifle: new rifle(this),
         };
+        this.weapons.pistol.damage = 10;
+        this.weapons.pistol.velocity = 5;
+        this.weapons.pistol.shotspeed = 600;
+        this.weapons.pistol.projectileMass = 1.2;
+        this.weapons.pistol.ammo = 8;
+        this.weapons.pistol.maxAmmo = 8;
+        this.weapons.pistol.reloadingTime = 1000;
+
         this.gun = this.weapons.rifle;
         this.isColliding = false;
     }
@@ -507,8 +483,19 @@ function renderHud() {
     let tempxa = ((canvas.height * 0.3) / player.gun.maxAmmo) * player.gun.ammo;
     ctx.fillRect(camera.x + canvas.width - 40, camera.y + canvas.height - tempxa - 5, 25, tempxa);
     let textOffest = getTextWidth(player.gun.ammo + " / " + player.gun.maxAmmo);
-    if (player.gun.isReloading) text("Reloading...", camera.x + canvas.width - 60 - textOffest, camera.y + canvas.height - 10);
+    if (player.gun.isReloading) text("Reloading...", camera.x + canvas.width - 150, camera.y + canvas.height - 10);
     else text(player.gun.ammo + " / " + player.gun.maxAmmo, camera.x + canvas.width - 40 - textOffest, camera.y + canvas.height - 10);
+
+    // player xp
+    ctx.fillStyle = "rgba(173, 173, 173, 0.39)";
+    let lwidth = canvas.width * 0.9;
+    ctx.fillRect(camera.x + (canvas.width - lwidth) / 2, camera.y + 40, lwidth, 15);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.39)";
+    let xp = player.xp;
+    let xpToNextLevel = player.xpToNextLevel;
+    let xpPercentage = xp / xpToNextLevel;
+    ctx.fillRect(camera.x + (canvas.width - lwidth) / 2, camera.y + 40, lwidth * xpPercentage, 15);
+    text(xp + " / " + xpToNextLevel, camera.x + canvas.width / 2, camera.y + 35);
 }
 function getTextWidth(text) {
     return text.length * 10;
