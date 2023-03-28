@@ -10,6 +10,7 @@ var oldResY = 0;
 var resDiffX = 0;
 var resDiffY = 0;
 var deltaTime = 0;
+var debugMode = false;
 var isMouseDown = false;
 var mouse = {
     x: 0,
@@ -196,7 +197,7 @@ class rifle {
         ctx.restore();
     }
     update() {
-        if (keyPressed.includes("r") && !this.isReloading && this.ammo < this.maxAmmo) {
+        if ((keyPressed.includes("r") || this.ammo <= 0) && !this.isReloading && this.ammo < this.maxAmmo) {
             this.isReloading = true;
             this.lastReload = performance.now();
         }
@@ -273,6 +274,12 @@ class playerClass {
         this.maxHealth = 100;
         this.xp = 0;
         this.xpToNextLevel = 10;
+        this.lvl = 1;
+        this.skillpoints = 0;
+        this.atk = 1.0;
+        this.maxamo = 1;
+        this.spd = 1.0;
+        this.atkspd = 1.0;
         this.baseTexture = baseTexture;
         this.weapons = {
             pistol: new rifle(this),
@@ -309,6 +316,12 @@ class playerClass {
         camera.y = this.y - camera.offsetY + resDiffY;
         if (this.isColliding) this.baseTexture = textures.smutnyobama;
         else this.baseTexture = textures.obamna;
+        if (this.xp >= this.xpToNextLevel) {
+            this.xp = 0;
+            this.lvl++;
+            this.skillpoints++;
+            this.xpToNextLevel += 3;
+        }
     }
     draw() {
         let degreeAngle = this.angle * (180 / Math.PI);
@@ -343,8 +356,9 @@ function init() {
     // import images
     textures.obamna.src = "../img/obamna.jpg";
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
-    player = new playerClass(0, 0);
+
     camera = new cameraClass();
+    player = new playerClass(0, 0);
     camera.offsetX = canvas.width / 2;
     camera.offsetY = canvas.height / 2;
     map = new mapClass();
@@ -356,6 +370,8 @@ function init() {
     camera.lastX = camera.x;
     camera.lastY = camera.y;
     windowResize();
+    let numberOfXp = randomInt(11, 125);
+    for (let indx = 0; indx < numberOfXp; indx++) map.ghosts.push(new xp(randomInt(-250, 250), randomInt(-250, 250), player, 1));
     requestAnimationFrame(loop);
 }
 var lastLoop = 0;
@@ -466,11 +482,12 @@ function render() {
     renderHud(); // render hud
 }
 function renderHud() {
-    text("FPS: " + Math.round(FPS * 100) / 100, camera.x + 10, camera.y + 25);
-    text("DeltaTime: " + Math.round(deltaTime * 100) / 100 + "ms", camera.x + 10, camera.y + 45);
-    text("Player HP: " + player.health, camera.x + 10, camera.y + 65);
-    text("Player XP: " + player.xp, camera.x + 10, camera.y + 85);
-
+    if (debugMode) {
+        text("FPS: " + Math.round(FPS * 100) / 100, camera.x + 10, camera.y + 25);
+        text("DeltaTime: " + Math.round(deltaTime * 100) / 100 + "ms", camera.x + 10, camera.y + 45);
+        text("Player HP: " + player.health, camera.x + 10, camera.y + 65);
+        text("Player XP: " + player.xp, camera.x + 10, camera.y + 85);
+    }
     // player health
     ctx.fillStyle = "lightcoral";
     ctx.fillRect(camera.x, camera.y + canvas.height - 20, canvas.width * 0.3, 15);
@@ -495,8 +512,26 @@ function renderHud() {
     let xpToNextLevel = player.xpToNextLevel;
     let xpPercentage = xp / xpToNextLevel;
     ctx.fillRect(camera.x + (canvas.width - lwidth) / 2, camera.y + 40, lwidth * xpPercentage, 15);
-    text(xp + " / " + xpToNextLevel, camera.x + canvas.width / 2, camera.y + 35);
+    text(xp + " / " + xpToNextLevel, camera.x + canvas.width / 2 - getTextWidth(xp + " / " + xpToNextLevel) / 2, camera.y + 35);
+    text("Poziom: " + player.lvl, camera.x + (canvas.width - lwidth) / 2, camera.y + 30);
+
+    // player stats
+
+    if (player.skillpoints > 0) {
+        text("HP: " + player.maxHealth + " +", camera.x, camera.y + canvas.height / 2 - 100);
+        text("ATK: " + player.atk + " +", camera.x, camera.y + canvas.height / 2 - 80);
+        text("ATKSPD: " + player.atkspd + " +", camera.x, camera.y + canvas.height / 2 - 60);
+        text("MAXAMO: " + player.maxamo + " +", camera.x, camera.y + canvas.height / 2 - 40);
+        text("WLKSPD: " + player.spd + " +", camera.x, camera.y + canvas.height / 2 - 20);
+    } else {
+        text("HP: " + player.maxHealth, camera.x, camera.y + canvas.height / 2 - 100);
+        text("ATK: " + player.atk, camera.x, camera.y + canvas.height / 2 - 80);
+        text("ATKSPD: " + player.atkspd, camera.x, camera.y + canvas.height / 2 - 60);
+        text("MAXAMO: " + player.maxamo, camera.x, camera.y + canvas.height / 2 - 40);
+        text("WLKSPD: " + player.spd, camera.x, camera.y + canvas.height / 2 - 20);
+    }
 }
+
 function getTextWidth(text) {
     return text.length * 10;
 }
@@ -507,6 +542,9 @@ function addListeners() {
         console.log(keyPressed);
         if (key == "q") spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
         if (key == "e") spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
+        if (key == "f2") debugMode = !debugMode;
+        if (player.skillpoints > 0) {
+        }
     });
     window.addEventListener("keyup", (e) => {
         var key = e.key.toLowerCase();
