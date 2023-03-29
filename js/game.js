@@ -17,6 +17,36 @@ var mouse = {
     y: 0,
 };
 var objectsToDelete = [];
+class item {
+    constructor(x, y, width, height, color = "blue") {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.color = color;
+        this.collected = false;
+    }
+    update() {
+        if (checkCollision(this, player)) {
+            this.collected = true;
+            console.log("item collected");
+            player.addItem(this);
+        }
+    }
+    render() {
+        if (this.collected) {
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+    }
+    collision(collider) {
+        if (collider instanceof playerClass) {
+            this.collected = true;
+            console.log("item collected");
+        }
+    }
+}
 class xp {
     constructor(x, y, owner, value = 1) {
         this.x = x;
@@ -98,6 +128,11 @@ class enemy {
         if (this.health <= 0) {
             objectsToDelete.push({array: map.entities, object: this});
             map.ghosts.push(new xp(this.x, this.y, collider.parent, this.xpValue));
+            if (player.lvl / player.itemSpawnRate > player.inventory.length) {
+                if (Math.random() < 1 / map.entities.length) {
+                    map.ghosts.push(new item(this.x, this.y, 20, 20));
+                }
+            }
         }
         console.log(this.health);
         if (collider instanceof playerClass && performance.now() - this.lastAttack > this.attackCooldown) {
@@ -201,7 +236,7 @@ class rifle {
             this.isReloading = true;
             this.lastReload = performance.now();
         }
-        if (performance.now() - this.lastReload > this.reloadingTime && this.isReloading) {
+        if (performance.now() - this.lastReload > this.reloadingTime / player.atkspd && this.isReloading) {
             this.ammo = this.maxAmmo;
             this.isReloading = false;
         }
@@ -295,6 +330,9 @@ class playerClass {
 
         this.gun = this.weapons.rifle;
         this.isColliding = false;
+        this.itemCount = 0;
+        this.itemSpawnRate = 3;
+        this.inventory = [];
     }
     update() {
         this.gun.update();
@@ -339,6 +377,9 @@ class playerClass {
         this.gun.angle = this.angle;
         this.gun.render();
     }
+    addItem(item) {
+        this.inventory.push(item);
+    }
 }
 var player;
 var camera;
@@ -365,6 +406,7 @@ function init() {
     // map.mapElements.push(new bush(100, 233));
     map.mapElements.push(new square(200, 200, 60, 60));
     map.entities.push(new enemy(100, 100, 30, 30));
+    map.ghosts.push(new item(100, 100, 30, 30, "brown"));
     camera.x = player.x;
     camera.y = player.y;
     camera.lastX = camera.x;
@@ -472,12 +514,13 @@ function render() {
         camera.lastX = camera.x;
         camera.lastY = camera.y;
     }
-    player.draw(); // render player
+
     // render all object in map
     for (let element of map.mapElements) if (element.render) element.render();
+    for (let element of map.ghosts) if (element.render) element.render();
+    player.draw(); // render player
     for (let element of map.entities) if (element.render) element.render();
     for (let element of map.projectiles) if (element.render) element.render();
-    for (let element of map.ghosts) if (element.render) element.render();
 
     renderHud(); // render hud
 }
@@ -519,16 +562,16 @@ function renderHud() {
 
     if (player.skillpoints > 0) {
         text("HP: " + player.maxHealth + " +", camera.x, camera.y + canvas.height / 2 - 100);
-        text("ATK: " + player.atk + " +", camera.x, camera.y + canvas.height / 2 - 80);
-        text("ATKSPD: " + player.atkspd + " +", camera.x, camera.y + canvas.height / 2 - 60);
-        text("MAXAMO: " + player.maxamo + " +", camera.x, camera.y + canvas.height / 2 - 40);
-        text("WLKSPD: " + player.spd + " +", camera.x, camera.y + canvas.height / 2 - 20);
+        text("ATK: " + Math.round(player.atk * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 80);
+        text("ATKSPD: " + Math.round(player.atkspd * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 60);
+        text("MAXAMO: " + Math.round(player.maxamo * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 40);
+        text("WLKSPD: " + Math.round(player.spd * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 20);
     } else {
         text("HP: " + player.maxHealth, camera.x, camera.y + canvas.height / 2 - 100);
-        text("ATK: " + player.atk, camera.x, camera.y + canvas.height / 2 - 80);
-        text("ATKSPD: " + player.atkspd, camera.x, camera.y + canvas.height / 2 - 60);
-        text("MAXAMO: " + player.maxamo, camera.x, camera.y + canvas.height / 2 - 40);
-        text("WLKSPD: " + player.spd, camera.x, camera.y + canvas.height / 2 - 20);
+        text("ATK: " + Math.round(player.atk * 100) / 100, camera.x, camera.y + canvas.height / 2 - 80);
+        text("ATKSPD: " + Math.round(player.atkspd * 100) / 100, camera.x, camera.y + canvas.height / 2 - 60);
+        text("MAXAMO: " + Math.round(player.maxamo * 100) / 100, camera.x, camera.y + canvas.height / 2 - 40);
+        text("WLKSPD: " + Math.round(player.spd * 100) / 100, camera.x, camera.y + canvas.height / 2 - 20);
     }
 }
 
@@ -543,7 +586,26 @@ function addListeners() {
         if (key == "q") spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
         if (key == "e") spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
         if (key == "f2") debugMode = !debugMode;
-        if (player.skillpoints > 0) {
+        if (key == "1" && player.skillpoints > 0) {
+            player.maxHealth += 10;
+            player.health += 10;
+            player.skillpoints--;
+        }
+        if (key == "2" && player.skillpoints > 0) {
+            player.atk += 0.1;
+            player.skillpoints--;
+        }
+        if (key == "3" && player.skillpoints > 0) {
+            player.atkspd += 0.1;
+            player.skillpoints--;
+        }
+        if (key == "4" && player.skillpoints > 0) {
+            player.maxamo += 0.1;
+            player.skillpoints--;
+        }
+        if (key == "5" && player.skillpoints > 0) {
+            player.spd += 0.1;
+            player.skillpoints--;
         }
     });
     window.addEventListener("keyup", (e) => {
@@ -584,7 +646,7 @@ function text(text, x, y, size = 20, color = "white") {
     ctx.fillStyle = tmp;
 }
 function shootProjectile(x, y, angle, velocity, mass, parent, damage) {
-    let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity, mass, damage);
+    let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity, mass, damage * player.atk);
     map.projectiles.push(bulet);
 }
 function randomInt(min, max) {
