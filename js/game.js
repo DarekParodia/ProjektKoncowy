@@ -384,7 +384,6 @@ class playerClass {
 var player;
 var camera;
 var map;
-
 document.addEventListener("DOMContentLoaded", init);
 
 function init() {
