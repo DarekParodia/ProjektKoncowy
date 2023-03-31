@@ -1,9 +1,14 @@
 var canvas;
 var ctx;
 var keyPressed = [];
+var gamePaused = false;
 var textures = {
     obamna: new Image(20, 20),
     smutnyobama: new Image(20, 20),
+    baseItem: new Image(20, 20),
+    items: {
+        forcefield: new Image(20, 20),
+    },
 };
 var oldResX = 0;
 var oldResY = 0;
@@ -18,12 +23,12 @@ var mouse = {
 };
 var objectsToDelete = [];
 class item {
-    constructor(x, y, width, height, color = "blue") {
+    constructor(x, y, width, height) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
-        this.color = color;
+        this.texture = textures.baseItem;
         this.collected = false;
         this.tickFunction = () => {};
     }
@@ -31,18 +36,25 @@ class item {
         if (checkCollision(this, player)) {
             this.collected = true;
             console.log("item collected");
+            gamePaused = true;
+            player.pickingItem = true;
             player.addItem(this);
+            let itemsGenerated = 0;
+            let count = 0;
+            while (itemsGenerated < 3) {
+                if (Math.random() < 1 / itemList.length) {
+                    itemsGenerated++;
+                    player.itemsToPick.push(itemList[count]);
+                }
+                count++;
+                if (count > itemList.length - 1) count = 0;
+            }
+            console.log(player.itemsToPick);
         }
     }
     render() {
         ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-    }
-    collision(collider) {
-        if (collider instanceof playerClass) {
-            this.collected = true;
-            console.log("item collected");
-        }
+        ctx.drawImage(this.texture, this.x, this.y, this.width, this.height);
     }
 }
 class xp {
@@ -59,7 +71,6 @@ class xp {
         this.xpValue = value;
         this.minDistance = 200;
         this.following = false;
-        console.log("xp spawned at: ", x, y);
     }
     update() {
         if (dystans(this.x, this.y, this.owner.x, this.owner.y) < this.minDistance) this.following = true;
@@ -67,7 +78,6 @@ class xp {
             if (checkCollision(this, this.owner)) {
                 this.owner.xp += this.xpValue;
                 map.ghosts.splice(map.ghosts.indexOf(this), 1);
-                console.log("xp collected at: ", this.x, this.y);
             } else {
                 this.y += Math.sin(Math.atan2(player.y - this.y, player.x - this.x)) * this.velocity * deltaTime;
                 this.x += Math.cos(Math.atan2(player.y - this.y, player.x - this.x)) * this.velocity * deltaTime;
@@ -128,7 +138,7 @@ class enemy {
             map.ghosts.push(new xp(this.x, this.y, collider.parent, this.xpValue));
             if (player.lvl / player.itemSpawnRate > player.inventory.length) {
                 if (Math.random() < 1 / map.entities.length) {
-                    map.ghosts.push(new item(this.x, this.y, 20, 20));
+                    spawnRandomItem(this.x, this.y);
                 }
             }
         }
@@ -161,7 +171,6 @@ class bullet {
         this.y += this.vy * deltaTime;
         if (this.creationTime + this.lifeTime <= Date.now()) {
             objectsToDelete.push({array: map.projectiles, object: this});
-            console.log("time limit reached");
         }
     }
     render() {
@@ -244,7 +253,6 @@ class rifle {
             this.lastShot = performance.now();
             this.ammo--;
             shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
-            console.log(this);
         }
     }
 }
@@ -333,6 +341,8 @@ class playerClass {
         this.itemCount = 0;
         this.itemSpawnRate = 3;
         this.inventory = [];
+        this.pickingItem = false;
+        this.itemsToPick = [];
     }
     update() {
         this.gun.update();
@@ -387,6 +397,9 @@ var player;
 var camera;
 var map;
 var itemList = [];
+function initItems() {
+    itemList.push({name: "Force Field", description: "Creates Force field around the player", texture: textures.items.forcefield, tickFunction: () => {}});
+}
 document.addEventListener("DOMContentLoaded", init);
 
 function init() {
@@ -400,6 +413,8 @@ function init() {
     // import images
     textures.obamna.src = "../img/obamna.jpg";
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
+    textures.baseItem.src = "../img/baseitem.png";
+    textures.items.forcefield.src = "../img/items/forcefield.png";
 
     initItems();
 
@@ -411,7 +426,6 @@ function init() {
     // map.mapElements.push(new bush(100, 233));
     map.mapElements.push(new square(200, 200, 60, 60));
     map.entities.push(new enemy(100, 100, 30, 30));
-    map.ghosts.push(new item(100, 100, 30, 30, "brown"));
     camera.x = player.x;
     camera.y = player.y;
     camera.lastX = camera.x;
@@ -430,9 +444,8 @@ function loop() {
     deltaTime = Date.now() - lastLoop;
     FPS = 1000 / deltaTime;
     lastLoop = Date.now();
-    update();
+    if (!gamePaused) update();
     render();
-    // console.log(map.entities[0].collidingFrom);
     requestAnimationFrame(loop);
 }
 function update() {
@@ -469,7 +482,6 @@ function update() {
         for (let j = i; j < projectilesLenght; j++) {
             let child = map.projectiles[j];
             if (checkCollision(parent, child)) {
-                console.log("Collision");
                 parent.isColliding = true;
                 child.isColliding = true;
                 if (!parent.ignorePhysics && !child.ignorePhysics) {
@@ -618,7 +630,6 @@ function addListeners() {
     window.addEventListener("keydown", (e) => {
         var key = e.key.toLowerCase();
         if (!keyPressed.includes(key)) keyPressed.push(key);
-        console.log(keyPressed);
         if (key == "q") spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
         if (key == "e") spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
         if (key == "t") spawnRandomItem(randomInt(-100, 100), randomInt(-100, 100));
@@ -648,7 +659,6 @@ function addListeners() {
     window.addEventListener("keyup", (e) => {
         var key = e.key.toLowerCase();
         if (keyPressed.includes(key)) keyPressed.splice(keyPressed.indexOf(key), 1);
-        console.log(keyPressed);
     });
     window.addEventListener("mousemove", (e) => {
         mouse.x = e.x;
@@ -692,10 +702,9 @@ function randomInt(min, max) {
 function dystans(x1, y1, x2, y2) {
     return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
 }
-function initItems() {}
+
 function spawnRandomItem(x, y) {
-    let size = randomInt(20, 40);
-    map.ghosts.push(new item(x, y, size, size, `rgb(${randomInt(0, 255)}, ${randomInt(0, 255)}, ${randomInt(0, 255)})`));
+    map.ghosts.push(new item(x, y, 20, 20));
     // map.ghosts.push(new item(x, y, size, size, `rgb(255, 255, 255)`));
 }
 function spawnEnemy1(x, y) {
