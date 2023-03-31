@@ -416,7 +416,9 @@ function init() {
     camera.y = player.y;
     camera.lastX = camera.x;
     camera.lastY = camera.y;
+
     windowResize();
+    text("LOADING...", 200, 200, 50);
     let numberOfXp = randomInt(11, 125);
     for (let indx = 0; indx < numberOfXp; indx++) map.ghosts.push(new xp(randomInt(-250, 250), randomInt(-250, 250), player, 1));
     requestAnimationFrame(loop);
