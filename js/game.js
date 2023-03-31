@@ -25,6 +25,7 @@ class item {
         this.height = height;
         this.color = color;
         this.collected = false;
+        this.tickFunction = () => {};
     }
     update() {
         if (checkCollision(this, player)) {
@@ -34,11 +35,8 @@ class item {
         }
     }
     render() {
-        if (this.collected) {
-        } else {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-        }
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
     }
     collision(collider) {
         if (collider instanceof playerClass) {
@@ -134,11 +132,9 @@ class enemy {
                 }
             }
         }
-        console.log(this.health);
         if (collider instanceof playerClass && performance.now() - this.lastAttack > this.attackCooldown) {
             collider.health -= this.damage;
             this.lastAttack = performance.now();
-            console.log("attack");
         }
     }
 }
@@ -215,8 +211,10 @@ class rifle {
         this.angle = 0;
         this.velocity = 8;
         this.shotspeed = 190;
+        this.baseShotspeed = this.shotspeed;
         this.lastShot = 0;
         this.damage = 5;
+        this.baseDamage = this.damage;
         this.parent = parent;
         this.projectileMass = 0.2;
         this.ammo = 30;
@@ -321,8 +319,10 @@ class playerClass {
             rifle: new rifle(this),
         };
         this.weapons.pistol.damage = 10;
+        this.weapons.pistol.baseDamage = this.weapons.pistol.damage;
         this.weapons.pistol.velocity = 5;
         this.weapons.pistol.shotspeed = 600;
+        this.weapons.pistol.baseShotspeed = this.weapons.pistol.shotspeed;
         this.weapons.pistol.projectileMass = 1.2;
         this.weapons.pistol.ammo = 8;
         this.weapons.pistol.maxAmmo = 8;
@@ -360,6 +360,8 @@ class playerClass {
             this.skillpoints++;
             this.xpToNextLevel += 3;
         }
+        this.gun.damage = this.gun.baseDamage * this.atk;
+        this.gun.shotspeed = this.gun.baseShotspeed * this.atkspd;
     }
     draw() {
         let degreeAngle = this.angle * (180 / Math.PI);
@@ -384,6 +386,7 @@ class playerClass {
 var player;
 var camera;
 var map;
+var itemList = [];
 document.addEventListener("DOMContentLoaded", init);
 
 function init() {
@@ -391,11 +394,14 @@ function init() {
     canvas.width = 854;
     canvas.height = 480;
     ctx = canvas.getContext("2d");
+    text("LOADING...", 200, 200, 50);
 
     addListeners();
     // import images
     textures.obamna.src = "../img/obamna.jpg";
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
+
+    initItems();
 
     camera = new cameraClass();
     player = new playerClass(0, 0);
@@ -487,7 +493,6 @@ function update() {
         }
         let child = player;
         if (checkCollision(parent, child)) {
-            console.log("Collision To Player");
             parent.isColliding = true;
             child.isColliding = true;
             if (parent.collision) parent.collision(child);
@@ -516,7 +521,7 @@ function render() {
 
     // render all object in map
     for (let element of map.mapElements) if (element.render) element.render();
-    for (let element of map.ghosts) if (element.render) element.render();
+    for (let element of map.ghosts) if (element.render && !element.collected) element.render();
     player.draw(); // render player
     for (let element of map.entities) if (element.render) element.render();
     for (let element of map.projectiles) if (element.render) element.render();
@@ -572,6 +577,36 @@ function renderHud() {
         text("MAXAMO: " + Math.round(player.maxamo * 100) / 100, camera.x, camera.y + canvas.height / 2 - 40);
         text("WLKSPD: " + Math.round(player.spd * 100) / 100, camera.x, camera.y + canvas.height / 2 - 20);
     }
+
+    // player items
+    let row = 0;
+    let c = 0;
+    let maxItemsInRow = 10;
+    let maxCols = 3;
+    let maxItems = maxItemsInRow * maxCols;
+    maxItems = maxItems < player.inventory.length ? maxItems : player.inventory.length;
+    for (let i = 0; i < maxItems; i++) {
+        if (i % maxItemsInRow == 0 && row < maxCols) {
+            row++;
+            c = 0;
+        }
+        const element = player.inventory[player.inventory.length - i - 1];
+        let spacing = 10;
+        let size = 20;
+        let x = camera.x + +spacing * row + size * row - size;
+        let y = camera.y + canvas.height / 2 + spacing * c + size * c;
+        element.x = x;
+        element.y = y;
+        element.width = size;
+        element.height = size;
+        element.render();
+        if (row >= maxCols && c >= maxItemsInRow - 1 && player.inventory.length > maxItems) {
+            ctx.fillStyle = `rgba(0, 0, 0, 0.5)`;
+            ctx.fillRect(x, y, size, size);
+            text("•••", x + 1, y + size / 1.3, 17, `rgba(0, 0, 0, 0.82)`);
+        }
+        c++;
+    }
 }
 
 function getTextWidth(text) {
@@ -584,6 +619,7 @@ function addListeners() {
         console.log(keyPressed);
         if (key == "q") spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
         if (key == "e") spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
+        if (key == "t") spawnRandomItem(randomInt(-100, 100), randomInt(-100, 100));
         if (key == "f2") debugMode = !debugMode;
         if (key == "1" && player.skillpoints > 0) {
             player.maxHealth += 10;
@@ -653,6 +689,12 @@ function randomInt(min, max) {
 }
 function dystans(x1, y1, x2, y2) {
     return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+}
+function initItems() {}
+function spawnRandomItem(x, y) {
+    let size = randomInt(20, 40);
+    map.ghosts.push(new item(x, y, size, size, `rgb(${randomInt(0, 255)}, ${randomInt(0, 255)}, ${randomInt(0, 255)})`));
+    // map.ghosts.push(new item(x, y, size, size, `rgb(255, 255, 255)`));
 }
 function spawnEnemy1(x, y) {
     map.entities.push(new enemy(x, y, 30, 30));
