@@ -22,4 +22,11 @@ document.addEventListener("DOMContentLoaded", (e) => {
     });
     console.log("loaded");
 });
+window.addEventListener("mousemove", (e) => {
+    var x = e.clientX;
+    var y = e.clientY;
+    var cursor = document.getElementById("cursor");
+    cursor.style.left = x + "px";
+    cursor.style.top = y + "px";
+});
 function joinGame() {}

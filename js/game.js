@@ -6,6 +6,7 @@ var textures = {
     obamna: new Image(20, 20),
     smutnyobama: new Image(20, 20),
     baseItem: new Image(20, 20),
+    lol: new Image(20, 20),
     items: {
         forcefield: new Image(20, 20),
     },
@@ -22,6 +23,7 @@ var mouse = {
     y: 0,
 };
 var objectsToDelete = [];
+
 class item {
     constructor(x, y, width, height) {
         this.x = x;
@@ -37,7 +39,7 @@ class item {
             this.collected = true;
             console.log("item collected");
             gamePaused = true;
-            player.pickingItem = true;
+
             player.addItem(this);
             let itemsGenerated = 0;
             let count = 0;
@@ -50,6 +52,7 @@ class item {
                 if (count > itemList.length - 1) count = 0;
             }
             console.log(player.itemsToPick);
+            player.pickingItem = true;
         }
     }
     render() {
@@ -399,6 +402,7 @@ var map;
 var itemList = [];
 function initItems() {
     itemList.push({name: "Force Field", description: "Creates Force field around the player", texture: textures.items.forcefield, tickFunction: () => {}});
+    itemList.push({name: "Item Dwa", description: "Creates Force field dwa around the player", texture: textures.items.forcefield, tickFunction: () => {}});
 }
 document.addEventListener("DOMContentLoaded", init);
 
@@ -412,10 +416,11 @@ function init() {
     addListeners();
     // import images
     textures.obamna.src = "../img/obamna.jpg";
+    textures.lol.src = "../img/lol.jpeg";
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
     textures.baseItem.src = "../img/baseitem.png";
     textures.items.forcefield.src = "../img/items/forcefield.png";
-
+    console.log(textures);
     initItems();
 
     camera = new cameraClass();
@@ -532,6 +537,7 @@ function render() {
         camera.lastX = camera.x;
         camera.lastY = camera.y;
     }
+    ctx.drawImage(textures.lol, -300, -300); // render background
 
     // render all object in map
     for (let element of map.mapElements) if (element.render) element.render();
@@ -621,6 +627,18 @@ function renderHud() {
         }
         c++;
     }
+
+    // item choosing
+    if (player.pickingItem) {
+        let r = document.querySelector(":root");
+        r.style.setProperty("--pickerDisplay", "flex");
+        for (let i = 0; i < 3; i++) {
+            let itemDiv = document.getElementById("item" + i);
+            let itemImg = document.querySelector(`#item${i} > img`);
+            let itemText = document.querySelector(`#item${i} > p`);
+            itemImg.src = player.itemsToPick[i].texture.src;
+        }
+    }
 }
 
 function getTextWidth(text) {
@@ -684,6 +702,12 @@ function windowResize() {
     resDiffY = (480 - canvas.height) / 2;
     oldResX = canvas.width;
     oldResY = canvas.height;
+
+    let r = document.querySelector(":root");
+    r.style.setProperty("--pickerHeight", canvas.height - canvas.height / 4 + "px");
+    r.style.setProperty("--pickerWidth", canvas.width - canvas.width / 4 + "px");
+    r.style.setProperty("--pickerX", canvas.width / 8 + "px");
+    r.style.setProperty("--pickerY", canvas.height / 8 + "px");
 }
 function text(text, x, y, size = 20, color = "white") {
     let tmp = ctx.fillStyle;

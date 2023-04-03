@@ -278,6 +278,14 @@ select{
     align-items: center;
     justify-content: center;
 }
+.flxrow{
+    display: flex;
+    flex-direction: row;
+}
+.flxcol{
+    display: flex;
+    flex-direction: column;
+}
 .mrgleft{
     margin-left: 20px;
 }
