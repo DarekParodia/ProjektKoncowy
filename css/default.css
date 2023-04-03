@@ -286,6 +286,10 @@ select{
     display: flex;
     flex-direction: column;
 }
+.flxstrt{
+    align-items: flex-start;
+    justify-content: flex-start;
+}
 .mrgleft{
     margin-left: 20px;
 }

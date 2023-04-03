@@ -23,41 +23,51 @@ var mouse = {
     y: 0,
 };
 var objectsToDelete = [];
+var tickDelay = 50;
 
 class item {
-    constructor(x, y, width, height) {
+    constructor(x, y, width, height, collected = false) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.texture = textures.baseItem;
         this.collected = false;
-        this.tickFunction = () => {};
+        this.tickFunction = (itm) => {};
+        this.supremeUpdate = (itm) => {
+            return "pedal";
+        };
+        this.supremeRender = (itm) => {};
+        this.sup = {};
+        this.parent = null;
     }
     update() {
-        if (checkCollision(this, player)) {
-            this.collected = true;
-            console.log("item collected");
-            gamePaused = true;
+        if (!this.collected) {
+            if (checkCollision(this, player)) {
+                this.collected = true;
+                console.log("item collected");
+                gamePaused = true;
 
-            player.addItem(this);
-            let itemsGenerated = 0;
-            let count = 0;
-            while (itemsGenerated < 3) {
-                if (Math.random() < 1 / itemList.length) {
-                    itemsGenerated++;
-                    player.itemsToPick.push(itemList[count]);
+                let itemsGenerated = 0;
+                let count = 0;
+                while (itemsGenerated < 3) {
+                    if (Math.random() < 1 / itemList.length) {
+                        itemsGenerated++;
+                        player.itemsToPick.push(itemList[count]);
+                        objectsToDelete.push({array: map.ghosts, object: this});
+                    }
+                    count++;
+                    if (count > itemList.length - 1) count = 0;
                 }
-                count++;
-                if (count > itemList.length - 1) count = 0;
+                console.log(player.itemsToPick);
+                player.pickingItem = true;
             }
-            console.log(player.itemsToPick);
-            player.pickingItem = true;
-        }
+        } else this.supremeUpdate(this);
     }
     render() {
         ctx.fillStyle = this.color;
         ctx.drawImage(this.texture, this.x, this.y, this.width, this.height);
+        if (this.collected) this.supremeRender(this);
     }
 }
 class xp {
@@ -134,15 +144,15 @@ class enemy {
         ctx.lineTo(this.x + this.vx * 100, this.y + this.vy * 100);
         ctx.stroke();
     }
-    collision(collider) {
-        if (collider.damage && this.health > 0 && collider instanceof bullet) this.health -= collider.damage;
+    collision(collider, damaging = false) {
+        if (collider.damage && this.health > 0 && (collider instanceof bullet || damaging)) this.health -= collider.damage;
         if (this.health <= 0) {
             objectsToDelete.push({array: map.entities, object: this});
             map.ghosts.push(new xp(this.x, this.y, collider.parent, this.xpValue));
-            if (player.lvl / player.itemSpawnRate > player.inventory.length) {
-                if (Math.random() < 1 / map.entities.length) {
-                    spawnRandomItem(this.x, this.y);
-                }
+            if (player.lvl / player.itemSpawnRate >= player.inventory.length + numberOfSpawnedItems()) {
+                //if (Math.random() < 1 / map.entities.length + 1.2) {
+                spawnRandomItem(this.x, this.y);
+                // }
             }
         }
         if (collider instanceof playerClass && performance.now() - this.lastAttack > this.attackCooldown) {
@@ -190,6 +200,13 @@ class bullet {
     collision() {
         objectsToDelete.push({array: map.projectiles, object: this});
     }
+}
+function numberOfSpawnedItems() {
+    let count = 0;
+    for (const element of map.ghosts) {
+        if (element instanceof item) count++;
+    }
+    return count;
 }
 function checkCollision(parent, element) {
     let hitboxX = parent.width > element.width ? parent.width : element.width;
@@ -395,14 +412,65 @@ class playerClass {
     addItem(item) {
         this.inventory.push(item);
     }
+    chooseItem(index) {
+        console.log(index);
+        const item1 = new item(0, 0, 20, 20, true);
+        item1.collected = true;
+        item1.texture = this.itemsToPick[index].texture;
+        item1.tickFunction = this.itemsToPick[index].tickFunction;
+        item1.supremeUpdate = this.itemsToPick[index].supremeUpdate;
+        item1.supremeRender = this.itemsToPick[index].supremeRender;
+        item1.name = this.itemsToPick[index].name;
+        item1.description = this.itemsToPick[index].description;
+        item1.parent = this;
+        this.itemsToPick[index].supremeInit(item1);
+        this.addItem(item1);
+        gamePaused = false;
+        player.pickingItem = false;
+    }
 }
 var player;
 var camera;
 var map;
 var itemList = [];
 function initItems() {
-    itemList.push({name: "Force Field", description: "Creates Force field around the player", texture: textures.items.forcefield, tickFunction: () => {}});
-    itemList.push({name: "Item Dwa", description: "Creates Force field dwa around the player", texture: textures.items.forcefield, tickFunction: () => {}});
+    itemList.push({
+        name: "Force Field",
+        description: "Creates Force field around the player",
+        texture: textures.items.forcefield,
+        tickFunction: (itm) => {
+            for (let element of map.entities) if (rectIntersect(itm.sup.x, itm.sup.y, itm.sup.width, itm.sup.height, element.x, element.y, element.width, element.height)) element.collision(itm.sup, true);
+            console.log(itm.sup);
+        },
+        supremeInit: (itm) => {
+            itm.sup.x = 0;
+            itm.sup.y = 0;
+            itm.sup.width = 20;
+            itm.sup.height = 20;
+            itm.sup.rotationAngle = 0;
+            itm.sup.damage = 15;
+            itm.sup.parent = itm.parent;
+        },
+        supremeUpdate: (itm) => {
+            itm.sup.x = itm.parent.x + Math.cos(itm.sup.rotationAngle) * 100;
+            itm.sup.y = itm.parent.y + Math.sin(itm.sup.rotationAngle) * 100;
+            itm.sup.rotationAngle += deltaTime / 100;
+        },
+        supremeRender: (itm) => {
+            ctx.drawImage(itm.texture, itm.sup.x, itm.sup.y, itm.sup.width, itm.sup.height);
+        },
+    });
+    itemList.push({
+        name: "Item OBAMY",
+        description: "Creates OBAMA field dwa around the <b>BLACKEST</b> player",
+        texture: textures.obamna,
+        tickFunction: (itm) => {
+            console.log("OBAMAfield tick");
+        },
+        supremeInit: (itm) => {},
+        supremeUpdate: (itm) => {},
+        supremeRender: (itm) => {},
+    });
 }
 document.addEventListener("DOMContentLoaded", init);
 
@@ -444,6 +512,7 @@ function init() {
 }
 var lastLoop = 0;
 var lastd = performance.now();
+var lastTick = performance.now();
 var FPS = 0;
 function loop() {
     deltaTime = Date.now() - lastLoop;
@@ -524,8 +593,28 @@ function update() {
         } catch (e) {}
     });
     objectsToDelete = [];
+
     // update player
     player.update();
+
+    // tick items
+    let timenow = performance.now();
+    if (lastTick + tickDelay < timenow) {
+        for (let element of player.inventory) element.tickFunction(element);
+
+        lastTick = performance.now();
+    }
+
+    // update items
+    for (let element of player.inventory) element.update();
+
+    // spawn enemies
+    var enemies = Object.keys(map.entities).length;
+    if (enemies < 50) {
+        let random = Math.random();
+        if (random < 0.5) spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
+        else spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
+    }
 }
 function render() {
     ctx.clearRect(camera.x - 100, camera.y - 100, canvas.width + 100, canvas.height + 100); // clear screen
@@ -543,6 +632,7 @@ function render() {
     for (let element of map.mapElements) if (element.render) element.render();
     for (let element of map.ghosts) if (element.render && !element.collected) element.render();
     player.draw(); // render player
+    for (let element of player.inventory) element.render();
     for (let element of map.entities) if (element.render) element.render();
     for (let element of map.projectiles) if (element.render) element.render();
 
@@ -629,15 +719,20 @@ function renderHud() {
     }
 
     // item choosing
+    let r = document.querySelector(":root");
     if (player.pickingItem) {
-        let r = document.querySelector(":root");
         r.style.setProperty("--pickerDisplay", "flex");
         for (let i = 0; i < 3; i++) {
             let itemDiv = document.getElementById("item" + i);
             let itemImg = document.querySelector(`#item${i} > img`);
-            let itemText = document.querySelector(`#item${i} > p`);
+            let itemName = document.querySelector(`#item${i} > h2`);
+            let itemDesc = document.querySelector(`#item${i} > p`);
             itemImg.src = player.itemsToPick[i].texture.src;
+            if (itemName.innerHTML != player.itemsToPick[i].name) itemName.innerHTML = player.itemsToPick[i].name;
+            if (itemDesc.innerHTML != player.itemsToPick[i].description) itemDesc.innerHTML = player.itemsToPick[i].description;
         }
+    } else {
+        r.style.setProperty("--pickerDisplay", "none");
     }
 }
 
@@ -689,6 +784,12 @@ function addListeners() {
         isMouseDown = false;
     });
     window.addEventListener("resize", windowResize);
+    for (let i = 0; i < 3; i++) {
+        const element = document.getElementById(`item${i}`);
+        element.addEventListener(`click`, (e) => {
+            if (player.pickingItem) player.chooseItem(i);
+        });
+    }
 }
 function windowResize() {
     oldResX = canvas.width;
