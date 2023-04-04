@@ -7,8 +7,10 @@ var textures = {
     smutnyobama: new Image(20, 20),
     baseItem: new Image(20, 20),
     lol: new Image(20, 20),
+    necoarc: new Image(20, 20),
     items: {
         forcefield: new Image(20, 20),
+        necoarc: new Image(20, 20),
     },
 };
 var oldResX = 0;
@@ -51,12 +53,14 @@ class item {
                 let itemsGenerated = 0;
                 let count = 0;
                 while (itemsGenerated < 3) {
-                    if (Math.random() < 1 / itemList.length) {
+                    if (Math.random() < 1 / itemList.length && !player.itemsToPick.includes(itemList[count])) {
                         itemsGenerated++;
                         player.itemsToPick.push(itemList[count]);
                         objectsToDelete.push({array: map.ghosts, object: this});
                     }
                     count++;
+                    if (count > itemList.length - 1) count = 0;
+                    if (Math.random() < itemList[count].rarity) count++;
                     if (count > itemList.length - 1) count = 0;
                 }
                 console.log(player.itemsToPick);
@@ -67,7 +71,6 @@ class item {
     render() {
         ctx.fillStyle = this.color;
         ctx.drawImage(this.texture, this.x, this.y, this.width, this.height);
-        if (this.collected) this.supremeRender(this);
     }
 }
 class xp {
@@ -86,7 +89,9 @@ class xp {
         this.following = false;
     }
     update() {
+        if (!this.owner) this.owner = player;
         if (dystans(this.x, this.y, this.owner.x, this.owner.y) < this.minDistance) this.following = true;
+
         if (this.following) {
             if (checkCollision(this, this.owner)) {
                 this.owner.xp += this.xpValue;
@@ -128,6 +133,12 @@ class enemy {
         this.vy = this.vy / this.drag;
         this.x += this.vx * deltaTime + Math.cos(this.angle);
         this.y += this.vy * deltaTime + Math.sin(this.angle);
+        if (checkCollision(player, this)) {
+            player.isColliding = true;
+            this.isColliding = true;
+            if (player.collision) player.collision(this);
+            if (this.collision) this.collision(player);
+        }
     }
     render() {
         let x = this.x - this.width / 2;
@@ -162,7 +173,7 @@ class enemy {
     }
 }
 class bullet {
-    constructor(parent, x, y, angle, speed = 10, mass = 1, damage = 5, color = "yellow") {
+    constructor(parent, x, y, angle, speed = 10, mass = 1, damage = 5, color = "yellow", bulletSizeRatio = 1) {
         this.x = x;
         this.y = y;
         this.vx = (Math.cos(angle) * speed) / 10;
@@ -172,12 +183,13 @@ class bullet {
         this.speed = speed / 10;
         this.mass = mass;
         this.color = color;
-        this.width = 5;
+        this.width = 15;
         this.height = 5;
         this.parent = parent;
         this.damage = damage;
         this.lifeTime = 5000;
         this.creationTime = Date.now();
+        this.bulletSizeRatio = bulletSizeRatio;
     }
     update() {
         this.x += this.vx * deltaTime;
@@ -185,12 +197,38 @@ class bullet {
         if (this.creationTime + this.lifeTime <= Date.now()) {
             objectsToDelete.push({array: map.projectiles, object: this});
         }
+        let parent = this;
+        for (let child of map.entities) {
+            if (checkCollision(parent, child)) {
+                parent.isColliding = true;
+                child.isColliding = true;
+                if (!parent.ignorePhysics && !child.ignorePhysics) {
+                    let obj1 = parent;
+                    let obj2 = child;
+                    let vCollision = {x: obj2.x - obj1.x, y: obj2.y - obj1.y};
+                    let distance = Math.sqrt((obj2.x - obj1.x) * (obj2.x - obj1.x) + (obj2.y - obj1.y) * (obj2.y - obj1.y));
+                    let vCollisionNorm = {x: vCollision.x / distance, y: vCollision.y / distance};
+                    let vRelativeVelocity = {x: obj1.vx - obj2.vx, y: obj1.vy - obj2.vy};
+                    let speed = vRelativeVelocity.x * vCollisionNorm.x + vRelativeVelocity.y * vCollisionNorm.y;
+                    if (speed < 0) {
+                        break;
+                    }
+                    let impulse = (2 * speed) / (obj1.mass + obj2.mass);
+                    obj1.vx -= impulse * obj2.mass * vCollisionNorm.x;
+                    obj1.vy -= impulse * obj2.mass * vCollisionNorm.y;
+                    obj2.vx += impulse * obj1.mass * vCollisionNorm.x;
+                    obj2.vy += impulse * obj1.mass * vCollisionNorm.y;
+                    if (parent.collision) parent.collision(child);
+                    if (child.collision) child.collision(parent);
+                }
+            }
+        }
     }
     render() {
         let x = this.x - this.width / 2;
         let y = this.y - this.height / 2;
         ctx.fillStyle = this.color;
-        ctx.fillRect(x, y, 5, 5);
+        ctx.fillRect(x, y, 5 * this.bulletSizeRatio, 5 * this.bulletSizeRatio);
         ctx.beginPath();
         // ctx.strokeStyle = "white";
         // ctx.moveTo(this.x, this.y);
@@ -249,6 +287,7 @@ class rifle {
         this.ammo = 30;
         this.maxAmmo = 30;
         this.reloadingTime = 2000;
+        this.bulletSizeRatio = 1;
     }
     render() {
         ctx.save();
@@ -272,7 +311,7 @@ class rifle {
         if (this.ammo > 0 && !this.isReloading) {
             this.lastShot = performance.now();
             this.ammo--;
-            shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage);
+            shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage, this.bulletSizeRatio);
         }
     }
 }
@@ -341,7 +380,8 @@ class playerClass {
         this.maxamo = 1;
         this.spd = 1.0;
         this.atkspd = 1.0;
-        this.baseTexture = baseTexture;
+        this.texture = baseTexture;
+        this.bulletSizeRatio = 1;
         this.weapons = {
             pistol: new rifle(this),
             rifle: new rifle(this),
@@ -382,8 +422,6 @@ class playerClass {
         }
         camera.x = this.x - camera.offsetX + resDiffX;
         camera.y = this.y - camera.offsetY + resDiffY;
-        if (this.isColliding) this.baseTexture = textures.smutnyobama;
-        else this.baseTexture = textures.obamna;
         if (this.xp >= this.xpToNextLevel) {
             this.xp = 0;
             this.lvl++;
@@ -400,9 +438,9 @@ class playerClass {
             ctx.save();
             ctx.scale(-1, 1);
             ctx.translate(-this.width - this.x + this.width / 2, 0 + this.y - this.height / 2);
-            ctx.drawImage(this.baseTexture, 0, 0, this.width, this.height);
+            ctx.drawImage(this.texture, 0, 0, this.width, this.height);
             ctx.restore();
-        } else ctx.drawImage(this.baseTexture, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+        } else ctx.drawImage(this.texture, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
         // draw gun
         this.gun.x = this.x;
         this.gun.y = this.y;
@@ -427,6 +465,7 @@ class playerClass {
         this.addItem(item1);
         gamePaused = false;
         player.pickingItem = false;
+        player.itemsToPick = [];
     }
 }
 var player;
@@ -438,34 +477,67 @@ function initItems() {
         name: "Force Field",
         description: "Creates Force field around the player",
         texture: textures.items.forcefield,
+        rarity: 0.9,
         tickFunction: (itm) => {
             for (let element of map.entities) if (rectIntersect(itm.sup.x, itm.sup.y, itm.sup.width, itm.sup.height, element.x, element.y, element.width, element.height)) element.collision(itm.sup, true);
-            console.log(itm.sup);
         },
         supremeInit: (itm) => {
             itm.sup.x = 0;
             itm.sup.y = 0;
-            itm.sup.width = 20;
-            itm.sup.height = 20;
+            itm.sup.width = 75;
+            itm.sup.height = 75;
             itm.sup.rotationAngle = 0;
-            itm.sup.damage = 15;
+            itm.sup.damage = 1.5;
             itm.sup.parent = itm.parent;
         },
         supremeUpdate: (itm) => {
-            itm.sup.x = itm.parent.x + Math.cos(itm.sup.rotationAngle) * 100;
-            itm.sup.y = itm.parent.y + Math.sin(itm.sup.rotationAngle) * 100;
+            itm.sup.x = itm.parent.x - itm.sup.width / 2;
+            itm.sup.y = itm.parent.y - itm.sup.height / 2;
             itm.sup.rotationAngle += deltaTime / 100;
         },
         supremeRender: (itm) => {
+            ctx.save();
+            ctx.globalAlpha = 0.5;
             ctx.drawImage(itm.texture, itm.sup.x, itm.sup.y, itm.sup.width, itm.sup.height);
+            ctx.restore();
         },
     });
     itemList.push({
         name: "Item OBAMY",
         description: "Creates OBAMA field dwa around the <b>BLACKEST</b> player",
         texture: textures.obamna,
+        rarity: 0.2,
         tickFunction: (itm) => {
             console.log("OBAMAfield tick");
+        },
+        supremeInit: (itm) => {},
+        supremeUpdate: (itm) => {},
+        supremeRender: (itm) => {},
+    });
+    itemList.push({
+        name: "Neco Arc",
+        description: `<b style="color: red;">Burenya</b>`,
+        texture: textures.items.necoarc,
+        rarity: 0.2,
+        tickFunction: (itm) => {
+            console.log(`%cBurenya`, `background: #222; color: #bada55`);
+            if (player.gun.bulletSizeRatio != itm.sup.bulletSizeRatio) player.gun.bulletSizeRatio = itm.sup.bulletSizeRatio;
+        },
+        supremeInit: (itm) => {
+            itm.parent.texture = textures.necoarc;
+            itm.parent.speed = 50;
+            itm.sup.bulletSizeRatio = 5;
+        },
+        supremeUpdate: (itm) => {},
+        supremeRender: (itm) => {},
+    });
+    itemList.push({
+        name: "Turret",
+        description: "Shoots at nearest enemy",
+        texture: textures.lol,
+        rarity: 0.9,
+        tickFunction: (itm) => {
+            console.log("SPERMAfield tick");
         },
         supremeInit: (itm) => {},
         supremeUpdate: (itm) => {},
@@ -487,7 +559,9 @@ function init() {
     textures.lol.src = "../img/lol.jpeg";
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
     textures.baseItem.src = "../img/baseitem.png";
+    textures.necoarc.src = "../img/neco-arc.png";
     textures.items.forcefield.src = "../img/items/forcefield.png";
+    textures.items.necoarc.src = "../img/items/neco-arc.png";
     console.log(textures);
     initItems();
 
@@ -517,12 +591,24 @@ var FPS = 0;
 function loop() {
     deltaTime = Date.now() - lastLoop;
     FPS = 1000 / deltaTime;
+
     lastLoop = Date.now();
     if (!gamePaused) update();
     render();
+
     requestAnimationFrame(loop);
 }
 function update() {
+    // detect collisiosn
+    for (let element of map.entities) {
+        if (element.update) element.update();
+        element.isColliding = false;
+    }
+    for (let element of map.projectiles) {
+        if (element.update) element.update();
+        element.isColliding = false;
+    }
+    player.isColliding = false;
     // update map elements
     for (let element of map.ghosts) if (element.update) element.update();
 
@@ -539,54 +625,7 @@ function update() {
     if (isMouseDown && performance.now() - player.gun.lastShot >= player.gun.shotspeed) {
         player.gun.shoot();
     }
-    // detect collisiosn
-    for (let element of map.entities) {
-        if (element.update) element.update();
-        element.isColliding = false;
-    }
-    for (let element of map.projectiles) {
-        if (element.update) element.update();
-        element.isColliding = false;
-    }
-    player.isColliding = false;
-    let mapEntitiesLenght = Object.keys(map.entities).length;
-    let projectilesLenght = Object.keys(map.projectiles).length;
-    for (let i = 0; i < mapEntitiesLenght; i++) {
-        let parent = map.entities[i];
-        for (let j = i; j < projectilesLenght; j++) {
-            let child = map.projectiles[j];
-            if (checkCollision(parent, child)) {
-                parent.isColliding = true;
-                child.isColliding = true;
-                if (!parent.ignorePhysics && !child.ignorePhysics) {
-                    let obj1 = parent;
-                    let obj2 = child;
-                    let vCollision = {x: obj2.x - obj1.x, y: obj2.y - obj1.y};
-                    let distance = Math.sqrt((obj2.x - obj1.x) * (obj2.x - obj1.x) + (obj2.y - obj1.y) * (obj2.y - obj1.y));
-                    let vCollisionNorm = {x: vCollision.x / distance, y: vCollision.y / distance};
-                    let vRelativeVelocity = {x: obj1.vx - obj2.vx, y: obj1.vy - obj2.vy};
-                    let speed = vRelativeVelocity.x * vCollisionNorm.x + vRelativeVelocity.y * vCollisionNorm.y;
-                    if (speed < 0) {
-                        break;
-                    }
-                    let impulse = (2 * speed) / (obj1.mass + obj2.mass);
-                    obj1.vx -= impulse * obj2.mass * vCollisionNorm.x;
-                    obj1.vy -= impulse * obj2.mass * vCollisionNorm.y;
-                    obj2.vx += impulse * obj1.mass * vCollisionNorm.x;
-                    obj2.vy += impulse * obj1.mass * vCollisionNorm.y;
-                    if (parent.collision) parent.collision(child);
-                    if (child.collision) child.collision(parent);
-                }
-            }
-        }
-        let child = player;
-        if (checkCollision(parent, child)) {
-            parent.isColliding = true;
-            child.isColliding = true;
-            if (parent.collision) parent.collision(child);
-            if (child.collision) child.collision(parent);
-        }
-    }
+
     objectsToDelete.forEach((element) => {
         try {
             element.array.splice(element.array.indexOf(element.object), 1);
@@ -631,8 +670,9 @@ function render() {
     // render all object in map
     for (let element of map.mapElements) if (element.render) element.render();
     for (let element of map.ghosts) if (element.render && !element.collected) element.render();
-    player.draw(); // render player
-    for (let element of player.inventory) element.render();
+
+    for (let element of player.inventory) element.supremeRender(element);
+    player.draw(); // render playerw
     for (let element of map.entities) if (element.render) element.render();
     for (let element of map.projectiles) if (element.render) element.render();
 
@@ -650,7 +690,7 @@ function renderHud() {
     ctx.fillRect(camera.x, camera.y + canvas.height - 20, canvas.width * 0.3, 15);
     ctx.fillStyle = "lightgreen";
     ctx.fillRect(camera.x, camera.y + canvas.height - 20, ((canvas.width * 0.3) / player.maxHealth) * player.health, 15);
-    text(player.health + " / " + player.maxHealth, camera.x, camera.y + canvas.height - 25);
+    text(Math.abs(player.health) + " / " + player.maxHealth, camera.x, camera.y + canvas.height - 25);
 
     // player ammo
     ctx.fillStyle = "yellow";
@@ -716,6 +756,7 @@ function renderHud() {
             text("•••", x + 1, y + size / 1.3, 17, `rgba(0, 0, 0, 0.82)`);
         }
         c++;
+        if (i > maxItems) break;
     }
 
     // item choosing
@@ -735,6 +776,8 @@ function renderHud() {
         r.style.setProperty("--pickerDisplay", "none");
     }
 }
+
+document.addEventListener(onkeydown, () => {});
 
 function getTextWidth(text) {
     return text.length * 10;
@@ -817,8 +860,8 @@ function text(text, x, y, size = 20, color = "white") {
     ctx.fillText(text, x, y);
     ctx.fillStyle = tmp;
 }
-function shootProjectile(x, y, angle, velocity, mass, parent, damage) {
-    let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity, mass, damage * player.atk);
+function shootProjectile(x, y, angle, velocity, mass, parent, damage, bulletSizeRatio = 1) {
+    let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity, mass, damage * player.atk, "yellow", bulletSizeRatio);
     map.projectiles.push(bulet);
 }
 function randomInt(min, max) {
