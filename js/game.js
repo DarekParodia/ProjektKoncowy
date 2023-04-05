@@ -51,18 +51,24 @@ class item {
                 gamePaused = true;
 
                 let itemsGenerated = 0;
+                let possibleItems = [];
+                for (const item of itemList) {
+                    if (!checkIfItemIsInInventory(item)) possibleItems.push(item);
+                }
+                console.log(possibleItems);
                 let count = 0;
-                while (itemsGenerated < 3) {
-                    if (Math.random() < 1 / itemList.length && !player.itemsToPick.includes(itemList[count])) {
+                let possibleCount = possibleItems.length > 3 ? 3 : possibleItems.length;
+                while (itemsGenerated < possibleCount) {
+                    if (Math.random() < 1 / possibleItems.length && !player.itemsToPick.includes(possibleItems[count])) {
                         itemsGenerated++;
-                        player.itemsToPick.push(itemList[count]);
-                        objectsToDelete.push({array: map.ghosts, object: this});
+                        player.itemsToPick.push(possibleItems[count]);
                     }
                     count++;
-                    if (count > itemList.length - 1) count = 0;
-                    if (Math.random() < itemList[count].rarity) count++;
-                    if (count > itemList.length - 1) count = 0;
+                    if (count > possibleItems.length - 1) count = 0;
+                    if (Math.random() < possibleItems[count].rarity) count++;
+                    if (count > possibleItems.length - 1) count = 0;
                 }
+                objectsToDelete.push({array: map.ghosts, object: this});
                 console.log(player.itemsToPick);
                 player.pickingItem = true;
             }
@@ -269,6 +275,12 @@ function checkCollisionY(parent, element) {
     let hitboxY = parent.height > element.height ? parent.height / 2 : element.height / 2;
     return Math.abs(parent.y + parent.height / 2 - (element.y + element.height / 2)) < hitboxY;
 }
+function checkIfItemIsInInventory(item) {
+    for (const element of player.inventory) {
+        if (element.name == item.name) return true;
+    }
+    return false;
+}
 class rifle {
     constructor(parent) {
         this.x = 0;
@@ -466,6 +478,10 @@ class playerClass {
         gamePaused = false;
         player.pickingItem = false;
         player.itemsToPick = [];
+        for (let i = 0; i < 3; i++) {
+            const element = getElementById("item" + i);
+            element.setAttribute("hidden", "true");
+        }
     }
 }
 var player;
@@ -489,6 +505,7 @@ function initItems() {
             itm.sup.rotationAngle = 0;
             itm.sup.damage = 1.5;
             itm.sup.parent = itm.parent;
+            itm.sup.maxUpgredes = 5;
         },
         supremeUpdate: (itm) => {
             itm.sup.x = itm.parent.x - itm.sup.width / 2;
@@ -510,7 +527,9 @@ function initItems() {
         tickFunction: (itm) => {
             console.log("OBAMAfield tick");
         },
-        supremeInit: (itm) => {},
+        supremeInit: (itm) => {
+            itm.sup.maxUpgredes = 3;
+        },
         supremeUpdate: (itm) => {},
         supremeRender: (itm) => {},
     });
@@ -527,6 +546,7 @@ function initItems() {
             itm.parent.texture = textures.necoarc;
             itm.parent.speed = 50;
             itm.sup.bulletSizeRatio = 5;
+            itm.sup.maxUpgredes = 1;
         },
         supremeUpdate: (itm) => {},
         supremeRender: (itm) => {},
@@ -539,7 +559,9 @@ function initItems() {
         tickFunction: (itm) => {
             console.log("SPERMAfield tick");
         },
-        supremeInit: (itm) => {},
+        supremeInit: (itm) => {
+            itm.sup.maxUpgredes = 5;
+        },
         supremeUpdate: (itm) => {},
         supremeRender: (itm) => {},
     });
@@ -763,11 +785,13 @@ function renderHud() {
     let r = document.querySelector(":root");
     if (player.pickingItem) {
         r.style.setProperty("--pickerDisplay", "flex");
-        for (let i = 0; i < 3; i++) {
+
+        for (let i = 0; i < player.itemsToPick.length; i++) {
             let itemDiv = document.getElementById("item" + i);
             let itemImg = document.querySelector(`#item${i} > img`);
             let itemName = document.querySelector(`#item${i} > h2`);
             let itemDesc = document.querySelector(`#item${i} > p`);
+            itemDiv.setAttribute("hidden", "false");
             itemImg.src = player.itemsToPick[i].texture.src;
             if (itemName.innerHTML != player.itemsToPick[i].name) itemName.innerHTML = player.itemsToPick[i].name;
             if (itemDesc.innerHTML != player.itemsToPick[i].description) itemDesc.innerHTML = player.itemsToPick[i].description;
