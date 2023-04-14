@@ -300,10 +300,13 @@ class rifle {
         this.maxAmmo = 30;
         this.reloadingTime = 2000;
         this.bulletSizeRatio = 1;
+        this.bulletCount = 1;
+        this.shootAngle = 15;
+        this.color = "red";
     }
     render() {
         ctx.save();
-        ctx.fillStyle = "red";
+        ctx.fillStyle = this.color;
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
         ctx.fillRect(20, -5, this.width, this.height);
@@ -323,8 +326,46 @@ class rifle {
         if (this.ammo > 0 && !this.isReloading) {
             this.lastShot = performance.now();
             this.ammo--;
-            shootProjectile(this.x, this.y, this.angle, this.velocity, this.projectileMass, this.parent, this.damage, this.bulletSizeRatio);
+            for (let i = 0; i < this.bulletCount; i++) {
+                let angle;
+                if (this.bulletCount == 1) {
+                    angle = 0;
+                } else {
+                    angle = this.angle + ((i - (this.bulletCount - 1) / 2) * this.shootAngle) / (this.bulletCount - 1);
+                    angle = (angle * Math.PI) / 180;
+                }
+                shootProjectile(this.x, this.y, this.angle + angle, this.velocity, this.projectileMass, this.parent, this.damage, this.bulletSizeRatio);
+            }
         }
+    }
+    pistolPrefab() {
+        this.damage = 10;
+        this.baseDamage = this.damage;
+        this.velocity = 5;
+        this.shotspeed = 600;
+        this.baseShotspeed = this.shotspeed;
+        this.projectileMass = 1.2;
+        this.ammo = 8;
+        this.maxAmmo = 8;
+        this.reloadingTime = 1000;
+        this.color = "green";
+        this.width = 15;
+        this.height = 5;
+    }
+    shotgunPrefab() {
+        this.damage = 5;
+        this.baseDamage = this.damage;
+        this.velocity = 15;
+        this.shotspeed = 400;
+        this.baseShotspeed = this.shotspeed;
+        this.projectileMass = 2.2;
+        this.ammo = 2;
+        this.maxAmmo = 2;
+        this.reloadingTime = 2000;
+        this.bulletCount = 5;
+        this.color = "brown";
+        this.width = 18;
+        this.height = 13;
     }
 }
 
@@ -397,16 +438,10 @@ class playerClass {
         this.weapons = {
             pistol: new rifle(this),
             rifle: new rifle(this),
+            shotgun: new rifle(this),
         };
-        this.weapons.pistol.damage = 10;
-        this.weapons.pistol.baseDamage = this.weapons.pistol.damage;
-        this.weapons.pistol.velocity = 5;
-        this.weapons.pistol.shotspeed = 600;
-        this.weapons.pistol.baseShotspeed = this.weapons.pistol.shotspeed;
-        this.weapons.pistol.projectileMass = 1.2;
-        this.weapons.pistol.ammo = 8;
-        this.weapons.pistol.maxAmmo = 8;
-        this.weapons.pistol.reloadingTime = 1000;
+        this.weapons.pistol.pistolPrefab();
+        this.weapons.shotgun.shotgunPrefab();
 
         this.gun = this.weapons.rifle;
         this.isColliding = false;
@@ -636,6 +671,7 @@ function update() {
 
     if (keyPressed.includes("1")) player.gun = player.weapons.pistol;
     else if (keyPressed.includes("2")) player.gun = player.weapons.rifle;
+    else if (keyPressed.includes("3")) player.gun = player.weapons.shotgun;
 
     // calculate player angle based on mouse position
     let canvasPosisitons = canvas.getBoundingClientRect();
@@ -733,6 +769,13 @@ function renderHud() {
     ctx.fillRect(camera.x + (canvas.width - lwidth) / 2, camera.y + 40, lwidth * xpPercentage, 15);
     text(xp + " / " + xpToNextLevel, camera.x + canvas.width / 2 - getTextWidth(xp + " / " + xpToNextLevel) / 2, camera.y + 35);
     text("Poziom: " + player.lvl, camera.x + (canvas.width - lwidth) / 2, camera.y + 30);
+
+    // player shoot delay
+    ctx.fillStyle = "rgb(255, 165, 0)";
+    let shootDelay = performance.now() - player.gun.lastShot;
+    let shootDelayPercentage = shootDelay / player.gun.baseShotspeed > 1 ? 1 : shootDelay / player.gun.baseShotspeed;
+    if (player.gun.isReloading) shootDelayPercentage = 0;
+    ctx.fillRect(player.x - player.width / 2, player.y - player.height / 2 - 10, player.width * shootDelayPercentage, 5);
 
     // player stats
 
