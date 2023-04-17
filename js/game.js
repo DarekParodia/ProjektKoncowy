@@ -139,6 +139,13 @@ class enemy {
         this.vy = this.vy / this.drag;
         this.x += this.vx * deltaTime + Math.cos(this.angle);
         this.y += this.vy * deltaTime + Math.sin(this.angle);
+        let lnght = new O
+        for(let enemyI = 0; enemyI < lnght; enemyI++) {
+            if (checkCollision(this, map.enemies[enemyI]) && this != map.enemies[enemyI]) {
+                this.vx = -this.vx;
+                this.vy = -this.vy;
+            }
+        }
         if (checkCollision(player, this)) {
             player.isColliding = true;
             this.isColliding = true;
@@ -752,7 +759,7 @@ function renderHud() {
 
     // player ammo
     ctx.fillStyle = "yellow";
-    let tempxa = ((canvas.height * 0.3) / player.gun.maxAmmo) * player.gun.ammo;
+    let tempxa = ((canvas.height * 0.3) / player.gun.maxAmmo) *(player.gun.isReloading ? 0 : player.gun.ammo );
     ctx.fillRect(camera.x + canvas.width - 40, camera.y + canvas.height - tempxa - 5, 25, tempxa);
     let textOffest = getTextWidth(player.gun.ammo + " / " + player.gun.maxAmmo);
     if (player.gun.isReloading) text("Reloading...", camera.x + canvas.width - 150, camera.y + canvas.height - 10);
