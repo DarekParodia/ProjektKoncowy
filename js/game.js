@@ -139,11 +139,14 @@ class enemy {
         this.vy = this.vy / this.drag;
         this.x += this.vx * deltaTime + Math.cos(this.angle);
         this.y += this.vy * deltaTime + Math.sin(this.angle);
-        let lnght = new O
-        for(let enemyI = 0; enemyI < lnght; enemyI++) {
-            if (checkCollision(this, map.enemies[enemyI]) && this != map.enemies[enemyI]) {
-                this.vx = -this.vx;
-                this.vy = -this.vy;
+        let lnght = Object.keys(map.entities).length;
+        for (let enemyI = 0; enemyI < lnght; enemyI++) {
+            let enemy = map.entities[enemyI];
+            if (checkCollisionX(this, enemy)) {
+                this.x += this.x - enemy.x;
+            }
+            if (checkCollisionY(this, enemy)) {
+                this.y += this.y - enemy.y;
             }
         }
         if (checkCollision(player, this)) {
@@ -275,12 +278,12 @@ function rectIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
     return true;
 }
 function checkCollisionX(parent, element) {
-    let hitboxX = parent.width > element.width ? parent.width / 2 : element.width / 2;
-    return Math.abs(parent.x + parent.width / 2 - (element.x + element.width / 2)) < hitboxX;
+    let hitboxX = parent.width > element.width ? parent.width : element.width;
+    return Math.abs(parent.x - element.x) < hitboxX;
 }
 function checkCollisionY(parent, element) {
-    let hitboxY = parent.height > element.height ? parent.height / 2 : element.height / 2;
-    return Math.abs(parent.y + parent.height / 2 - (element.y + element.height / 2)) < hitboxY;
+    let hitboxY = parent.height > element.height ? parent.height : element.height;
+    return Math.abs(parent.y - element.y) < hitboxY;
 }
 function checkIfItemIsInInventory(item) {
     for (const element of player.inventory) {
@@ -759,7 +762,7 @@ function renderHud() {
 
     // player ammo
     ctx.fillStyle = "yellow";
-    let tempxa = ((canvas.height * 0.3) / player.gun.maxAmmo) *(player.gun.isReloading ? 0 : player.gun.ammo );
+    let tempxa = ((canvas.height * 0.3) / player.gun.maxAmmo) * (player.gun.isReloading ? 0 : player.gun.ammo);
     ctx.fillRect(camera.x + canvas.width - 40, camera.y + canvas.height - tempxa - 5, 25, tempxa);
     let textOffest = getTextWidth(player.gun.ammo + " / " + player.gun.maxAmmo);
     if (player.gun.isReloading) text("Reloading...", camera.x + canvas.width - 150, camera.y + canvas.height - 10);
