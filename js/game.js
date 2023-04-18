@@ -25,7 +25,7 @@ var mouse = {
     y: 0,
 };
 var objectsToDelete = [];
-var tickDelay = 50;
+var tickDelay = 150;
 
 class item {
     constructor(x, y, width, height, collected = false) {
@@ -58,6 +58,10 @@ class item {
                 console.log(possibleItems);
                 let count = 0;
                 let possibleCount = possibleItems.length > 3 ? 3 : possibleItems.length;
+                if (possibleCount <= 0) {
+                    gamePaused = false;
+                    return;
+                }
                 while (itemsGenerated < possibleCount) {
                     if (Math.random() < 1 / possibleItems.length && !player.itemsToPick.includes(possibleItems[count])) {
                         itemsGenerated++;
@@ -127,8 +131,8 @@ class enemy {
         this.mass = 50;
         this.vx = 0;
         this.vy = 0;
-        this.health = 100;
-        this.maxHealth = 100;
+        this.health = 10;
+        this.maxHealth = 10;
         this.xpValue = 1;
         this.lastAttack = performance.now();
         this.attackCooldown = 1000;
@@ -139,16 +143,6 @@ class enemy {
         this.vy = this.vy / this.drag;
         this.x += this.vx * deltaTime + Math.cos(this.angle);
         this.y += this.vy * deltaTime + Math.sin(this.angle);
-        let lnght = Object.keys(map.entities).length;
-        for (let enemyI = 0; enemyI < lnght; enemyI++) {
-            let enemy = map.entities[enemyI];
-            if (checkCollisionX(this, enemy)) {
-                this.x += this.x - enemy.x;
-            }
-            if (checkCollisionY(this, enemy)) {
-                this.y += this.y - enemy.y;
-            }
-        }
         if (checkCollision(player, this)) {
             player.isColliding = true;
             this.isColliding = true;
@@ -181,6 +175,9 @@ class enemy {
                 spawnRandomItem(this.x, this.y);
                 // }
             }
+            if (collider.piercing) {
+                shootProjectile(collider.x, collider.y, collider.angle, collider.velocity / 2, collider.mass, collider.parent, collider.damage / 2, collider.bulletSizeRatio);
+            }
         }
         if (collider instanceof playerClass && performance.now() - this.lastAttack > this.attackCooldown) {
             collider.health -= this.damage;
@@ -206,6 +203,7 @@ class bullet {
         this.lifeTime = 5000;
         this.creationTime = Date.now();
         this.bulletSizeRatio = bulletSizeRatio;
+        this.piercing = true;
     }
     update() {
         this.x += this.vx * deltaTime;
@@ -524,8 +522,9 @@ class playerClass {
         player.pickingItem = false;
         player.itemsToPick = [];
         for (let i = 0; i < 3; i++) {
-            const element = getElementById("item" + i);
-            element.setAttribute("hidden", "true");
+            const element = document.getElementById("item" + i);
+            element.style.visibility = "hidden";
+            element.style.display = "none";
         }
     }
 }
@@ -623,7 +622,9 @@ function init() {
     addListeners();
     // import images
     textures.obamna.src = "../img/obamna.jpg";
-    textures.lol.src = "../img/lol.jpeg";
+    if (Math.random() > 0.5) {
+        textures.lol.src = "../img/l.png";
+    } else textures.lol.src = "../img/l.jpg";
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
     textures.baseItem.src = "../img/baseitem.png";
     textures.necoarc.src = "../img/neco-arc.png";
@@ -717,7 +718,7 @@ function update() {
 
     // spawn enemies
     var enemies = Object.keys(map.entities).length;
-    if (enemies < 50) {
+    if (enemies < 25) {
         let random = Math.random();
         if (random < 0.5) spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
         else spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
@@ -844,7 +845,8 @@ function renderHud() {
             let itemImg = document.querySelector(`#item${i} > img`);
             let itemName = document.querySelector(`#item${i} > h2`);
             let itemDesc = document.querySelector(`#item${i} > p`);
-            itemDiv.setAttribute("hidden", "false");
+            itemDiv.style.display = "flex";
+            itemDiv.style.visibility = "visible";
             itemImg.src = player.itemsToPick[i].texture.src;
             if (itemName.innerHTML != player.itemsToPick[i].name) itemName.innerHTML = player.itemsToPick[i].name;
             if (itemDesc.innerHTML != player.itemsToPick[i].description) itemDesc.innerHTML = player.itemsToPick[i].description;
