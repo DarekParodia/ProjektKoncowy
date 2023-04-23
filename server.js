@@ -1,6 +1,10 @@
 const express = require("express");
+const gameHost = require("./js/host.js");
 const app = express();
-const port = 25565;
+const port = 80;
+const gamePort = 8080;
+
+const server = new gameHost.host(gamePort);
 
 app.use("/js", express.static(__dirname + "/js"));
 app.use("/css", express.static(__dirname + "/css"));
