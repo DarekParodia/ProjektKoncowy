@@ -25,6 +25,7 @@ var mouse = {
     y: 0,
 };
 var objectsToDelete = [];
+var objectsToDo = [];
 var tickDelay = 150;
 
 class item {
@@ -166,7 +167,23 @@ class enemy {
         ctx.stroke();
     }
     collision(collider, damaging = false) {
-        if (collider.damage && this.health > 0 && (collider instanceof bullet || damaging)) this.health -= collider.damage;
+        if (collider.damage && this.health > 0 && (collider instanceof bullet || damaging)) {
+            let prevDmg = collider.damage;
+            let newDmg = collider.damage - this.health;
+            console.log(newDmg);
+            this.health -= collider.damage;
+            if (newDmg > 0) {
+                if (collider.piercing) {
+                    objectsToDo.push({
+                        object: this,
+                        action: function () {
+                            shootProjectile(collider.x, collider.y, collider.angle, collider.vx + collider.vy, collider.mass, collider.parent, newDmg, collider.bulletSizeRatio);
+                            console.log("piercing", collider);
+                        },
+                    });
+                }
+            }
+        }
         if (this.health <= 0) {
             objectsToDelete.push({array: map.entities, object: this});
             map.ghosts.push(new xp(this.x, this.y, collider.parent, this.xpValue));
@@ -174,9 +191,6 @@ class enemy {
                 //if (Math.random() < 1 / map.entities.length + 1.2) {
                 spawnRandomItem(this.x, this.y);
                 // }
-            }
-            if (collider.piercing) {
-                shootProjectile(collider.x, collider.y, collider.angle, collider.velocity / 2, collider.mass, collider.parent, collider.damage / 2, collider.bulletSizeRatio);
             }
         }
         if (collider instanceof playerClass && performance.now() - this.lastAttack > this.attackCooldown) {
@@ -361,16 +375,16 @@ class rifle {
         this.height = 5;
     }
     shotgunPrefab() {
-        this.damage = 5;
+        this.damage = 7;
         this.baseDamage = this.damage;
-        this.velocity = 15;
+        this.velocity = 1;
         this.shotspeed = 400;
         this.baseShotspeed = this.shotspeed;
         this.projectileMass = 2.2;
         this.ammo = 2;
         this.maxAmmo = 2;
         this.reloadingTime = 2000;
-        this.bulletCount = 5;
+        this.bulletCount = 2;
         this.color = "brown";
         this.width = 18;
         this.height = 13;
@@ -454,12 +468,16 @@ class playerClass {
         this.gun = this.weapons.rifle;
         this.isColliding = false;
         this.itemCount = 0;
-        this.itemSpawnRate = 3;
+        this.itemSpawnRate = 5;
         this.inventory = [];
         this.pickingItem = false;
         this.itemsToPick = [];
     }
     update() {
+        if (this.health <= 0) {
+            this.health = 0;
+            this.death();
+        }
         this.gun.update();
         let diagnal = false;
         if ((keyPressed.includes("w") && keyPressed.includes("a")) || (keyPressed.includes("w") && keyPressed.includes("d")) || (keyPressed.includes("s") && keyPressed.includes("a")) || (keyPressed.includes("s") && keyPressed.includes("d"))) diagnal = true;
@@ -527,6 +545,10 @@ class playerClass {
             element.style.display = "none";
         }
     }
+    death() {
+        console.log("You died");
+        this.dead = true;
+    }
 }
 var player;
 var camera;
@@ -547,7 +569,7 @@ function initItems() {
             itm.sup.width = 75;
             itm.sup.height = 75;
             itm.sup.rotationAngle = 0;
-            itm.sup.damage = 1.5;
+            itm.sup.damage = 0.25;
             itm.sup.parent = itm.parent;
             itm.sup.maxUpgredes = 5;
         },
@@ -622,7 +644,7 @@ function init() {
     addListeners();
     // import images
     textures.obamna.src = "../img/obamna.jpg";
-    if (Math.random() > 0.5) {
+    if (Math.random() > 0) {
         textures.lol.src = "../img/l.png";
     } else textures.lol.src = "../img/l.jpg";
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
@@ -718,11 +740,20 @@ function update() {
 
     // spawn enemies
     var enemies = Object.keys(map.entities).length;
-    if (enemies < 25) {
+    if (enemies < 1) {
         let random = Math.random();
         if (random < 0.5) spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
         else spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
     }
+
+    objectsToDo.forEach((element) => {
+        try {
+            element.action();
+        } catch (e) {
+            console.error(e);
+        }
+    });
+    objectsToDo = [];
 }
 function render() {
     ctx.clearRect(camera.x - 100, camera.y - 100, canvas.width + 100, canvas.height + 100); // clear screen
@@ -759,7 +790,7 @@ function renderHud() {
     ctx.fillRect(camera.x, camera.y + canvas.height - 20, canvas.width * 0.3, 15);
     ctx.fillStyle = "lightgreen";
     ctx.fillRect(camera.x, camera.y + canvas.height - 20, ((canvas.width * 0.3) / player.maxHealth) * player.health, 15);
-    text(Math.abs(player.health) + " / " + player.maxHealth, camera.x, camera.y + canvas.height - 25);
+    text(player.health + " / " + player.maxHealth, camera.x, camera.y + canvas.height - 25);
 
     // player ammo
     ctx.fillStyle = "yellow";
@@ -854,6 +885,12 @@ function renderHud() {
     } else {
         r.style.setProperty("--pickerDisplay", "none");
     }
+
+    // death screen
+    if (player.dead) {
+        text("Zginąłeś", camera.x, camera.y + canvas.height / 4 - 100);
+        text("Naciśnij F5 aby zacząć od nowa", camera.x, camera.y + canvas.height / 4 - 80);
+    }
 }
 
 document.addEventListener(onkeydown, () => {});
@@ -870,24 +907,24 @@ function addListeners() {
         if (key == "t") spawnRandomItem(randomInt(-100, 100), randomInt(-100, 100));
         if (key == "f2") debugMode = !debugMode;
         if (key == "1" && player.skillpoints > 0) {
-            player.maxHealth += 10;
-            player.health += 10;
+            player.maxHealth += 5;
+            player.health += 5;
             player.skillpoints--;
         }
         if (key == "2" && player.skillpoints > 0) {
-            player.atk += 0.1;
+            player.atk += 0.05;
             player.skillpoints--;
         }
         if (key == "3" && player.skillpoints > 0) {
-            player.atkspd += 0.1;
+            player.atkspd += 0.05;
             player.skillpoints--;
         }
         if (key == "4" && player.skillpoints > 0) {
-            player.maxamo += 0.1;
+            player.maxamo += 0.05;
             player.skillpoints--;
         }
         if (key == "5" && player.skillpoints > 0) {
-            player.spd += 0.1;
+            player.spd += 0.05;
             player.skillpoints--;
         }
     });
@@ -942,6 +979,7 @@ function text(text, x, y, size = 20, color = "white") {
 function shootProjectile(x, y, angle, velocity, mass, parent, damage, bulletSizeRatio = 1) {
     let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity, mass, damage * player.atk, "yellow", bulletSizeRatio);
     map.projectiles.push(bulet);
+    console.log("new bullet", bulet);
 }
 function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -959,9 +997,9 @@ function spawnEnemy1(x, y) {
 }
 function spawnEnemy2(x, y) {
     let en = new enemy(x, y, 30, 30);
-    en.maxHealth = 150;
-    en.health = 150;
-    en.speed = 1;
+    en.maxHealth = 20;
+    en.health = 20;
+    en.speed = 0.25;
     en.color = "blue";
     en.xpValue = 5;
     map.entities.push(en);
