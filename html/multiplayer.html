@@ -8,7 +8,7 @@
     <title>Multiplayer</title>
     <link rel="stylesheet" href="../css/default.css">
     <link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
-    <script src="../js/game.js"></script>
+    <script src="../js/multiplayer.js"></script>
 </head>
 
 <body>
@@ -20,8 +20,8 @@
             <div class="flxcntr">
                 <div class="flexRow inputbox">
                     <input type="text" name="gameid" id="gameid" placeholder="ID Gry Multiplayer">
-                    <button type="button" id="gameidbtn" onclick="joinGame()"><img src="img/arrowright.svg" width="16"
-                            height="16"></button>
+                    <button class="gameidbtn" type="button" id="gameidbtn" onclick="joinGame()"><img
+                            src="img/arrowright.svg" width="16" height="16"></button>
                 </div>
             </div>
         </div>
@@ -49,17 +49,18 @@
                 similique obcaecati?</p>
         </aside>
         <main class="flxcntr">
-            <h1 class="center">Multiplayer</h1>
+            <h1 class="center">Lista Serwerów</h1>
+            <label for="nick">Pseudonim: </label>
+            <input type="text" name="nick" id="nick">
             <div>
-                <label for="resolution" class="mrgleft">Roździelczość: </label>
-                <select name="resolution" id="resolution">
-                    <option value="640x480">640x480</option>
-                    <option value="800x600">800x600</option>
-                    <option value="1024x768">1024x768</option>
-                    <option value="fullscreen">fullscreen</option>
-                </select>
-                <br>
-                <canvas id="gamecanvas"></canvas>
+                <table id="serverlist">
+                    <tr>
+                        <th>Nazwa</th>
+                        <th>Port</th>
+                        <th>Sloty</th>
+                        <th>Dolacz</th>
+                    </tr>
+                </table>
             </div>
         </main>
     </div>

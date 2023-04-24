@@ -94,6 +94,9 @@ aside{
     padding-right: 20px;
     padding-top: 10px;
 }
+table, table *{
+    border: solid 1px rgb(66, 66, 66);
+}
 .mobileMenu{
     display: none;
 }
@@ -211,19 +214,17 @@ select{
     border-radius: 6px;
     padding-bottom: 2px;
 }
-#gameidbtn{
+.gameidbtn{
     background-color: var(--passive-color);
     height: 31px;
-    border-top-right-radius: 6px;
-    border-bottom-right-radius: 6px;
     position: relative;
     top: -2px;
 }
-#gameidbtn:hover{
+.gameidbtn:hover{
     background-color: var(--active-color);
     cursor: pointer;
 }
-#gameidbtn:active{
+.gameidbtn:active{
     background-color: var(--passive-color);
 }
 #gameid{ 
@@ -295,4 +296,7 @@ select{
 }
 .center{
     text-align: center;
+}
+input{
+    background-color: rgb(13, 17, 23);
 }
