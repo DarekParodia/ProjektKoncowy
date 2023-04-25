@@ -61,5 +61,38 @@ function joinGame(port) {
     let nick = document.getElementById("nick").value;
     if (!nick) nick = "guest" + Math.floor(Math.random() * 10000);
     console.log("joining game", port, "with nick", nick);
-    window.location.href = window.origin + `/joingame?port=${port}&nickname=${nick}`;
+
+    const xhr = new XMLHttpRequest();
+    const url = window.origin + "/joingame";
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
+    const body = JSON.stringify({
+        updates: listUpdates,
+        serverList: serverList,
+    });
+    xhr.onload = () => {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+            const respond = JSON.parse(xhr.responseText);
+            console.log(respond);
+            listUpdates += 1;
+            serverList = respond;
+            updatelist();
+        } else {
+            console.log(`Error: ${xhr.status}`);
+        }
+    };
+    xhr.send(body);
+}
+function createSession() {
+    let nick = document.getElementById("nick").value;
+    if (!nick) nick = "guest" + Math.floor(Math.random() * 10000);
+    console.log("creating session with nick", nick);
+}
+function checkForSession() {
+    let ssid = getCookie("ssid");
+}
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
 }
