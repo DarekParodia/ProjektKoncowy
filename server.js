@@ -1,10 +1,15 @@
 const express = require("express");
+var bodyParser = require("body-parser");
 const app = express();
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: false}));
 const port = 80;
 const gamePort = 8080;
 class host {
     constructor(port, name, maxPlayers) {
         this.app = express();
+        this.app.use(bodyParser.json());
+        this.app.use(bodyParser.urlencoded({extended: false}));
         this.port = port;
         this.name = name;
         this.maxPlayers = maxPlayers;
@@ -42,6 +47,7 @@ app.get("/main.html", (req, res) => {
 });
 app.post("/joingame", (req, res) => {
     let data = req.body;
+    console.log("joingame", data);
     res.send(data);
 });
 app.post("/getserverlist", (req, res) => {
@@ -52,6 +58,25 @@ app.post("/getserverlist", (req, res) => {
 app.post("/checkforsession", (req, res) => {
     let data = req.body;
     console.log("Session check request reveived");
+    for (let session of sessions) {
+        if (session.ssid == data.ssid) {
+            return res.send({status: "OK", nickname: session.nickname});
+        }
+    }
+    res.send({status: "no session found"});
+});
+app.post("/nickchange", (req, res) => {
+    console.log(sessions);
+    console.log(req.body);
+    let ssid = req.body.ssid;
+    if (checkForExistingNickname(req.body.nickname)) res.send({status: "nick exists"});
+    for (let session of sessions) {
+        if (session.ssid == ssid) {
+            session.nickname = req.body.nickname;
+            return res.send({status: "OK", nickname: req.body.nickname});
+        }
+    }
+    res.send({status: "no ssid"});
 });
 app.post("/login", (req, res) => {
     let data = req.body;
@@ -60,13 +85,14 @@ app.post("/login", (req, res) => {
         res.send({status: "failed", reason: "Nickname already in use"});
         return;
     }
+    let ssid = generateSSID();
     let session = {
         nickname: data.nickname,
         server: null,
-        ssid: generateSSID(),
+        ssid: ssid,
     };
     sessions.push(session);
-    req.cookies.ssid = session.ssid;
+    res.send({ssid: ssid});
 });
 
 app.listen(port, () => {
@@ -93,7 +119,7 @@ console.log(generateSSID());
 function generateSSID() {
     let exists = true;
     let ssid = "";
-    while (exist) {
+    while (exists) {
         ssid = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         if (!sessions.find((element) => element.ssid == ssid)) exists = false;
     }

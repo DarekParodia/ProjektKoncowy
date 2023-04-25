@@ -740,7 +740,7 @@ function update() {
 
     // spawn enemies
     var enemies = Object.keys(map.entities).length;
-    if (enemies < 1) {
+    if (enemies < 50) {
         let random = Math.random();
         if (random < 0.5) spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
         else spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
