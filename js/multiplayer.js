@@ -72,7 +72,7 @@ function joinGame(port) {
     xhr.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
     const body = JSON.stringify({
         serverPort: port,
-        ssid: getCookie("ssid").value,
+        ssid: getCookie("ssid"),
     });
     xhr.onload = () => {
         if (xhr.readyState == 4 && xhr.status == 200) {

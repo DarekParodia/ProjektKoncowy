@@ -3,8 +3,9 @@ var bodyParser = require("body-parser");
 const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
-const port = 80;
+const port = 2137;
 const gamePort = 8080;
+class game {}
 class host {
     constructor(port, name, maxPlayers) {
         this.app = express();
@@ -12,6 +13,7 @@ class host {
         this.app.use(bodyParser.urlencoded({extended: false}));
         this.port = port;
         this.name = name;
+        this.game = new game();
         this.maxPlayers = maxPlayers;
         this.players = [];
         this.app.get("*", (req, res) => {
@@ -21,9 +23,14 @@ class host {
             let data = req.body;
             res.send("pong");
         });
-        this.app.post("/gamepocket", (req, res) => {
+        this.app.post("/connect", (req, res) => {
             let data = req.body;
-            res.send("gamepocket");
+            console.log("connect", data);
+            res.send("pong");
+        });
+        this.app.post("/packet", (req, res) => {
+            let data = req.body;
+            res.send(this.game);
         });
         this.app.listen(this.port, () => {
             console.log(`Game host running at: ${this.port}`);
@@ -48,6 +55,14 @@ app.get("/main.html", (req, res) => {
 app.post("/joingame", (req, res) => {
     let data = req.body;
     console.log("joingame", data);
+    // set user server
+    for (let session of sessions) {
+        if (session.ssid == data.ssid) {
+            session.server = getServer(data.serverPort);
+            console.log(session);
+            return res.send({status: "OK"});
+        }
+    }
     res.send(data);
 });
 app.post("/getserverlist", (req, res) => {
@@ -64,6 +79,16 @@ app.post("/checkforsession", (req, res) => {
         }
     }
     res.send({status: "no session found"});
+});
+app.post("/getserver", (req, res) => {
+    let data = req.body;
+    console.log("Server request reveived");
+    let server = getUserServer(data.ssid);
+    if (server) {
+        res.send({serverPort: server.port, serverName: server.name, maxPlayers: server.maxPlayers});
+    } else {
+        res.send({status: "no server found"});
+    }
 });
 app.post("/nickchange", (req, res) => {
     console.log(sessions);
@@ -105,6 +130,11 @@ function createLobby(name, maxPlayers = 10, password = "") {
     serverList.push(server);
     serverPasswords.push({serverIndex: serverList.indexOf(server), password: password});
     return server;
+}
+function getUserServer(ssid) {
+    let session = sessions.find((element) => element.ssid == ssid);
+    if (session) return session.server;
+    return null;
 }
 function getServer(port) {
     return serverList.find((element) => element.port == port);
