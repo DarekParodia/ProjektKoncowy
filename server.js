@@ -1,40 +1,51 @@
 const express = require("express");
 var bodyParser = require("body-parser");
+var cors = require("cors");
 const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
-const port = 2137;
+app.use(cors());
+const port = 80;
 const gamePort = 8080;
 class game {}
 class host {
     constructor(port, name, maxPlayers) {
-        this.app = express();
+        this.app = new express();
         this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({extended: false}));
+        this.app.use(cors());
         this.port = port;
         this.name = name;
         this.game = new game();
         this.maxPlayers = maxPlayers;
         this.players = [];
         this.app.get("*", (req, res) => {
+            this.log("get request received");
             res.redirect("http://" + req.headers.host.split(":")[0] + req.url);
         });
+        // this.app.post("*", (req, res) => {
+        //     this.log("post request received: " + req.originalUrl);
+        // });
         this.app.post("/ping", (req, res) => {
             let data = req.body;
             res.send("pong");
         });
         this.app.post("/connect", (req, res) => {
             let data = req.body;
-            console.log("connect", data);
-            res.send("pong");
+            this.log("connect request from ssid: " + data.ssid);
+            if (getUserServer(data.ssid).port == this.port) res.send({status: "ok"});
+            else res.send({status: "error"});
         });
         this.app.post("/packet", (req, res) => {
             let data = req.body;
             res.send(this.game);
         });
         this.app.listen(this.port, () => {
-            console.log(`Game host running at: ${this.port}`);
+            this.log(`Game host running at: ${this.port}`);
         });
+    }
+    log(text) {
+        console.log(`[ ${this.name} / ${this.port} ]`, text);
     }
 }
 var serverList = [];
@@ -59,7 +70,6 @@ app.post("/joingame", (req, res) => {
     for (let session of sessions) {
         if (session.ssid == data.ssid) {
             session.server = getServer(data.serverPort);
-            console.log(session);
             return res.send({status: "OK"});
         }
     }
@@ -123,7 +133,7 @@ app.post("/login", (req, res) => {
 app.listen(port, () => {
     console.log(`Strona aktywna pod portem: ${port}`);
     createLobby("Main Server", 100);
-    for (let i = 0; i < 100; i++) createLobby("Test Server" + i, 0);
+    for (let i = 0; i < 5; i++) createLobby("Test Server" + i, 0);
 });
 function createLobby(name, maxPlayers = 10, password = "") {
     let server = new host(gamePort + serverList.length, name, maxPlayers);

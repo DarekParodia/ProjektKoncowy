@@ -5,12 +5,65 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Singleplayer</title>
+    <link rel="stylesheet" href="../css/default.css">
+    <link rel="stylesheet" href="../css/game.css">
+    <link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
     <script src="../js/client.js"></script>
 </head>
 
 <body>
-    orporporpor DZIALA
+    <header class="container flexRow">
+        <div class="logoBox">
+            <a href="/" class="logo">
+                <img src="../img/ludzik.gif" alt="logo" width="48" height="48">
+            </a>
+            <div class="flxcntr">
+                <div class="flexRow inputbox">
+                    <input type="text" name="gameid" id="gameid" placeholder="ID Gry Multiplayer">
+                    <button type="button" id="gameidbtn" onclick="joinGame()"><img src="img/arrowright.svg" width="16"
+                            height="16"></button>
+                </div>
+            </div>
+        </div>
+        </div>
+        <div class="menu fstart mrgleft">
+            <h3 class="textbtn"><a class="textbtn" href="/">Strona Główna</a></h3>
+            <h3 class="textbtn"><a class="textbtn" href="/html/singleplayer.html">Singleplayer</a></h3>
+            <h3 class="textbtn"><a class="textbtn" href="/html/multiplayer.html">Multiplayer</a></h3>
+            <h3 class="textbtn"><a class="textbtn" href="/html/informacje.html">Informacje</a></h3>
+            <h3><a class="textbtn" href="https://github.com/DarekParodia/ProjektKoncowy">Github</a></h3>
+        </div>
+        <div class="menu fend lcspace">
+            <div class="divbtn">
+                <h3>Demo Konta</h3>
+            </div>
+        </div>
+    </header>
+    <main id="main">
+        <canvas id="gamecanvas">
+
+        </canvas>
+        <div id="jsmenu">
+            <div id="itempicker" class="flexcntr flxcol">
+                <h1>Wybierz Przedmiot</h1>
+                <div class="flxrow">
+                    <div class="item" id="item0"><img>
+                        <h2>Name</h2>
+                        <p>Description</p>
+                    </div>
+                    <div class="item" id="item1"><img>
+                        <h2>Name</h2>
+                        <p>Description</p>
+                    </div>
+                    <div class="item" id="item2"><img>
+                        <h2>Name</h2>
+                        <p>Description</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 </body>
 
 </html>

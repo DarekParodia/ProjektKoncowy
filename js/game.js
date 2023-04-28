@@ -893,7 +893,7 @@ function renderHud() {
     }
 }
 
-document.addEventListener(onkeydown, () => {});
+document.addEventListener(onkeydown, () => {}); // linijka dodana przez tomasza (ave maria) (działa)
 
 function getTextWidth(text) {
     return text.length * 10;
