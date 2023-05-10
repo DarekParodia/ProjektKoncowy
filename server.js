@@ -7,7 +7,100 @@ app.use(bodyParser.urlencoded({extended: false}));
 app.use(cors());
 const port = 80;
 const gamePort = 8080;
-class game {}
+const textures = {
+    player: "obamna.jpg",
+};
+class game {
+    enemy = class {
+        constructor(x, y, width, height, color, texture) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height - height;
+            this.color = color;
+            this.texture = texture;
+        }
+        update() {}
+    };
+    player = class {
+        constructor(ssid, x, y, width, height, color, texture) {
+            this.ssid = ssid;
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height - height;
+            this.color = color;
+            this.speed = 5;
+            this.texture = texture;
+            this.keyPressed = [];
+        }
+        update(deltaTime) {
+            let diagnal = false;
+            if ((this.keyPressed.includes("w") && this.keyPressed.includes("a")) || (this.keyPressed.includes("w") && this.keyPressed.includes("d")) || (this.keyPressed.includes("s") && this.keyPressed.includes("a")) || (this.keyPressed.includes("s") && this.keyPressed.includes("d"))) diagnal = true;
+            if (this.keyPressed.includes("w")) {
+                this.y -= diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
+            }
+            if (this.keyPressed.includes("a")) {
+                this.x -= diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
+            }
+            if (this.keyPressed.includes("s")) {
+                this.y += diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
+            }
+            if (this.keyPressed.includes("d")) {
+                this.x += diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
+            }
+        }
+    };
+    constructor() {
+        this.gameEntities = [];
+        this.gamePlayers = [];
+        this.updateDelay = 0;
+        this.lastUpdate = Date.now();
+    }
+    init() {
+        this.loop();
+    }
+    loop() {
+        setTimeout(() => {
+            this.update();
+            this.loop();
+        }, this.updateDelay);
+    }
+    update() {
+        console.log("update");
+
+        // update players
+        for (let player of this.gamePlayers) {
+            console.log(player);
+            player.update(this.deltaTime);
+        }
+        this.deltaTime = Date.now() - this.lastUpdate;
+        this.lastUpdate = Date.now();
+    }
+    playerUpdate(data) {
+        for (let player of this.gamePlayers) {
+            if (player.ssid == data.ssid) {
+                player.keyPressed = data.keyPressed;
+            }
+        }
+    }
+    join(ssid) {
+        this.gamePlayers.push(new this.player(ssid, randomInt(-100, 100), randomInt(-100, 100), 10, 10, "white", textures.player));
+        return true;
+    }
+    checkIfPlayerExists(ssid) {
+        for (let player of this.gamePlayers) {
+            if (player.ssid == ssid) return true;
+        }
+        return false;
+    }
+    getPlayer(ssid) {
+        for (let player of this.gamePlayers) {
+            if (player.ssid == ssid) return player;
+        }
+        return false;
+    }
+}
 class host {
     constructor(port, name, maxPlayers) {
         this.app = new express();
@@ -33,15 +126,17 @@ class host {
         this.app.post("/connect", (req, res) => {
             let data = req.body;
             this.log("connect request from ssid: " + data.ssid);
-            if (getUserServer(data.ssid).port == this.port) res.send({status: "ok"});
+            if (getUserServer(data.ssid).port == this.port && this.game.join(data.ssid)) res.send({status: "ok"});
             else res.send({status: "error"});
         });
         this.app.post("/packet", (req, res) => {
             let data = req.body;
-            res.send(this.game);
+            this.game.playerUpdate(data);
+            res.send({status: "ok", entities: this.game.gameEntities, players: this.game.gamePlayers, player: this.game.getPlayer(data.ssid), pingNumber: data.pingNumber});
         });
         this.app.listen(this.port, () => {
             this.log(`Game host running at: ${this.port}`);
+            this.game.init();
         });
     }
     log(text) {
@@ -133,7 +228,7 @@ app.post("/login", (req, res) => {
 app.listen(port, () => {
     console.log(`Strona aktywna pod portem: ${port}`);
     createLobby("Main Server", 100);
-    for (let i = 0; i < 5; i++) createLobby("Test Server" + i, 0);
+    for (let i = 0; i < 2; i++) createLobby("Test Server" + i, 0);
 });
 function createLobby(name, maxPlayers = 10, password = "") {
     let server = new host(gamePort + serverList.length, name, maxPlayers);
@@ -148,6 +243,9 @@ function getUserServer(ssid) {
 }
 function getServer(port) {
     return serverList.find((element) => element.port == port);
+}
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 function checkForExistingNickname(nickname) {
     for (let session of sessions) {

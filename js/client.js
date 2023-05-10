@@ -4,6 +4,8 @@ var ssid = null;
 var requestDelay = 0;
 var lastPing = 0;
 var ping = null;
+var pingNumber = 0;
+var lastPingNumber = 0;
 document.addEventListener("DOMContentLoaded", function () {
     checkForSession(() => {
         getServer(() => {
@@ -45,245 +47,6 @@ var objectsToDelete = [];
 var objectsToDo = [];
 var tickDelay = 150;
 
-class item {
-    constructor(x, y, width, height, collected = false) {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-        this.texture = textures.baseItem;
-        this.collected = false;
-        this.tickFunction = (itm) => {};
-        this.supremeUpdate = (itm) => {
-            return "pedal";
-        };
-        this.supremeRender = (itm) => {};
-        this.sup = {};
-        this.parent = null;
-    }
-    update() {
-        if (!this.collected) {
-            if (checkCollision(this, player)) {
-                this.collected = true;
-                console.log("item collected");
-                gamePaused = true;
-
-                let itemsGenerated = 0;
-                let possibleItems = [];
-                for (const item of itemList) {
-                    if (!checkIfItemIsInInventory(item)) possibleItems.push(item);
-                }
-                console.log(possibleItems);
-                let count = 0;
-                let possibleCount = possibleItems.length > 3 ? 3 : possibleItems.length;
-                if (possibleCount <= 0) {
-                    gamePaused = false;
-                    return;
-                }
-                while (itemsGenerated < possibleCount) {
-                    if (Math.random() < 1 / possibleItems.length && !player.itemsToPick.includes(possibleItems[count])) {
-                        itemsGenerated++;
-                        player.itemsToPick.push(possibleItems[count]);
-                    }
-                    count++;
-                    if (count > possibleItems.length - 1) count = 0;
-                    if (Math.random() < possibleItems[count].rarity) count++;
-                    if (count > possibleItems.length - 1) count = 0;
-                }
-                objectsToDelete.push({array: map.ghosts, object: this});
-                console.log(player.itemsToPick);
-                player.pickingItem = true;
-            }
-        } else this.supremeUpdate(this);
-    }
-    render() {
-        ctx.fillStyle = this.color;
-        ctx.drawImage(this.texture, this.x, this.y, this.width, this.height);
-    }
-}
-class xp {
-    constructor(x, y, owner, value = 1) {
-        this.x = x;
-        this.y = y;
-        this.width = 5;
-        this.height = 5;
-        this.color = "green";
-        this.acceleration = 0.01;
-        this.velocity = 0.0001;
-        this.owner = owner;
-        this.bornTime = performance.now();
-        this.xpValue = value;
-        this.minDistance = 200;
-        this.following = false;
-    }
-    update() {
-        if (!this.owner) this.owner = player;
-        if (dystans(this.x, this.y, this.owner.x, this.owner.y) < this.minDistance) this.following = true;
-
-        if (this.following) {
-            if (checkCollision(this, this.owner)) {
-                this.owner.xp += this.xpValue;
-                map.ghosts.splice(map.ghosts.indexOf(this), 1);
-            } else {
-                this.y += Math.sin(Math.atan2(player.y - this.y, player.x - this.x)) * this.velocity * deltaTime;
-                this.x += Math.cos(Math.atan2(player.y - this.y, player.x - this.x)) * this.velocity * deltaTime;
-                this.velocity += this.acceleration * deltaTime * this.velocity;
-            }
-        }
-    }
-    render() {
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-    }
-}
-class enemy {
-    constructor(x, y, width, height, damage = 5, color = "red") {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-        this.drag = 1.01;
-        this.damage = damage;
-        this.color = color;
-        this.angle = 0;
-        this.mass = 50;
-        this.vx = 0;
-        this.vy = 0;
-        this.health = 10;
-        this.maxHealth = 10;
-        this.xpValue = 1;
-        this.lastAttack = performance.now();
-        this.attackCooldown = 1000;
-    }
-    update() {
-        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
-        this.vx = this.vx / this.drag;
-        this.vy = this.vy / this.drag;
-        this.x += this.vx * deltaTime + Math.cos(this.angle);
-        this.y += this.vy * deltaTime + Math.sin(this.angle);
-        if (checkCollision(player, this)) {
-            player.isColliding = true;
-            this.isColliding = true;
-            if (player.collision) player.collision(this);
-            if (this.collision) this.collision(player);
-        }
-    }
-    render() {
-        let x = this.x - this.width / 2;
-        let y = this.y - this.height / 2;
-        ctx.fillStyle = this.color;
-        ctx.fillRect(x, y, this.width, this.height);
-        ctx.fillStyle = "lightcoral";
-        ctx.fillRect(x, y - 10, this.width, 5);
-        ctx.fillStyle = "lightgreen";
-        ctx.fillRect(x, y - 10, (this.width / this.maxHealth) * this.health, 5);
-        ctx.beginPath();
-        ctx.strokeStyle = "white";
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x + this.vx * 100, this.y + this.vy * 100);
-        ctx.stroke();
-    }
-    collision(collider, damaging = false) {
-        if (collider.damage && this.health > 0 && (collider instanceof bullet || damaging)) {
-            let prevDmg = collider.damage;
-            let newDmg = collider.damage - this.health;
-            console.log(newDmg);
-            this.health -= collider.damage;
-            if (newDmg > 0) {
-                if (collider.piercing) {
-                    objectsToDo.push({
-                        object: this,
-                        action: function () {
-                            shootProjectile(collider.x, collider.y, collider.angle, collider.vx + collider.vy, collider.mass, collider.parent, newDmg, collider.bulletSizeRatio);
-                            console.log("piercing", collider);
-                        },
-                    });
-                }
-            }
-        }
-        if (this.health <= 0) {
-            objectsToDelete.push({array: map.entities, object: this});
-            map.ghosts.push(new xp(this.x, this.y, collider.parent, this.xpValue));
-            if (player.lvl / player.itemSpawnRate >= player.inventory.length + numberOfSpawnedItems()) {
-                //if (Math.random() < 1 / map.entities.length + 1.2) {
-                spawnRandomItem(this.x, this.y);
-                // }
-            }
-        }
-        if (collider instanceof playerClass && performance.now() - this.lastAttack > this.attackCooldown) {
-            collider.health -= this.damage;
-            this.lastAttack = performance.now();
-        }
-    }
-}
-class bullet {
-    constructor(parent, x, y, angle, speed = 10, mass = 1, damage = 5, color = "yellow", bulletSizeRatio = 1) {
-        this.x = x;
-        this.y = y;
-        this.vx = (Math.cos(angle) * speed) / 10;
-        this.vy = (Math.sin(angle) * speed) / 10;
-        this.isColliding = false;
-        this.angle = angle;
-        this.speed = speed / 10;
-        this.mass = mass;
-        this.color = color;
-        this.width = 15;
-        this.height = 5;
-        this.parent = parent;
-        this.damage = damage;
-        this.lifeTime = 5000;
-        this.creationTime = Date.now();
-        this.bulletSizeRatio = bulletSizeRatio;
-        this.piercing = true;
-    }
-    update() {
-        this.x += this.vx * deltaTime;
-        this.y += this.vy * deltaTime;
-        if (this.creationTime + this.lifeTime <= Date.now()) {
-            objectsToDelete.push({array: map.projectiles, object: this});
-        }
-        let parent = this;
-        for (let child of map.entities) {
-            if (checkCollision(parent, child)) {
-                parent.isColliding = true;
-                child.isColliding = true;
-                if (!parent.ignorePhysics && !child.ignorePhysics) {
-                    let obj1 = parent;
-                    let obj2 = child;
-                    let vCollision = {x: obj2.x - obj1.x, y: obj2.y - obj1.y};
-                    let distance = Math.sqrt((obj2.x - obj1.x) * (obj2.x - obj1.x) + (obj2.y - obj1.y) * (obj2.y - obj1.y));
-                    let vCollisionNorm = {x: vCollision.x / distance, y: vCollision.y / distance};
-                    let vRelativeVelocity = {x: obj1.vx - obj2.vx, y: obj1.vy - obj2.vy};
-                    let speed = vRelativeVelocity.x * vCollisionNorm.x + vRelativeVelocity.y * vCollisionNorm.y;
-                    if (speed < 0) {
-                        break;
-                    }
-                    let impulse = (2 * speed) / (obj1.mass + obj2.mass);
-                    obj1.vx -= impulse * obj2.mass * vCollisionNorm.x;
-                    obj1.vy -= impulse * obj2.mass * vCollisionNorm.y;
-                    obj2.vx += impulse * obj1.mass * vCollisionNorm.x;
-                    obj2.vy += impulse * obj1.mass * vCollisionNorm.y;
-                    if (parent.collision) parent.collision(child);
-                    if (child.collision) child.collision(parent);
-                }
-            }
-        }
-    }
-    render() {
-        let x = this.x - this.width / 2;
-        let y = this.y - this.height / 2;
-        ctx.fillStyle = this.color;
-        ctx.fillRect(x, y, 5 * this.bulletSizeRatio, 5 * this.bulletSizeRatio);
-        ctx.beginPath();
-        // ctx.strokeStyle = "white";
-        // ctx.moveTo(this.x, this.y);
-        // ctx.lineTo(this.x + this.vx * 150, this.y + this.vy * 150);
-        // ctx.stroke();
-    }
-    collision() {
-        objectsToDelete.push({array: map.projectiles, object: this});
-    }
-}
 function numberOfSpawnedItems() {
     let count = 0;
     for (const element of map.ghosts) {
@@ -407,37 +170,11 @@ class rifle {
         this.height = 13;
     }
 }
-
-class bush {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.width = 20;
-        this.height = 20;
-    }
-    render() {
-        ctx.fillStyle = "green";
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        ctx.fillRect(this.x + 15, this.y + 10, this.width, this.height);
-    }
-}
-class square {
-    constructor(x, y, sx, sy, color = "green") {
-        this.x = x;
-        this.y = y;
-        this.width = sx;
-        this.height = sy;
-        this.color = color;
-    }
-    render() {
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-    }
-}
 class mapClass {
     constructor() {
         this.projectiles = [];
         this.entities = [];
+        this.players = [];
         this.mapElements = [];
         this.ghosts = [];
     }
@@ -570,84 +307,6 @@ var player;
 var camera;
 var map;
 var itemList = [];
-function initItems() {
-    itemList.push({
-        name: "Force Field",
-        description: "Creates Force field around the player",
-        texture: textures.items.forcefield,
-        rarity: 0.9,
-        tickFunction: (itm) => {
-            for (let element of map.entities) if (rectIntersect(itm.sup.x, itm.sup.y, itm.sup.width, itm.sup.height, element.x, element.y, element.width, element.height)) element.collision(itm.sup, true);
-        },
-        supremeInit: (itm) => {
-            itm.sup.x = 0;
-            itm.sup.y = 0;
-            itm.sup.width = 75;
-            itm.sup.height = 75;
-            itm.sup.rotationAngle = 0;
-            itm.sup.damage = 0.25;
-            itm.sup.parent = itm.parent;
-            itm.sup.maxUpgredes = 5;
-        },
-        supremeUpdate: (itm) => {
-            itm.sup.x = itm.parent.x - itm.sup.width / 2;
-            itm.sup.y = itm.parent.y - itm.sup.height / 2;
-            itm.sup.rotationAngle += deltaTime / 100;
-        },
-        supremeRender: (itm) => {
-            ctx.save();
-            ctx.globalAlpha = 0.5;
-            ctx.drawImage(itm.texture, itm.sup.x, itm.sup.y, itm.sup.width, itm.sup.height);
-            ctx.restore();
-        },
-    });
-    itemList.push({
-        name: "Item OBAMY",
-        description: "Creates OBAMA field dwa around the <b>BLACKEST</b> player",
-        texture: textures.obamna,
-        rarity: 0.2,
-        tickFunction: (itm) => {
-            console.log("OBAMAfield tick");
-        },
-        supremeInit: (itm) => {
-            itm.sup.maxUpgredes = 3;
-        },
-        supremeUpdate: (itm) => {},
-        supremeRender: (itm) => {},
-    });
-    itemList.push({
-        name: "Neco Arc",
-        description: `<b style="color: red;">Burenya</b>`,
-        texture: textures.items.necoarc,
-        rarity: 0.2,
-        tickFunction: (itm) => {
-            console.log(`%cBurenya`, `background: #222; color: #bada55`);
-            if (player.gun.bulletSizeRatio != itm.sup.bulletSizeRatio) player.gun.bulletSizeRatio = itm.sup.bulletSizeRatio;
-        },
-        supremeInit: (itm) => {
-            itm.parent.texture = textures.necoarc;
-            itm.parent.speed = 50;
-            itm.sup.bulletSizeRatio = 5;
-            itm.sup.maxUpgredes = 1;
-        },
-        supremeUpdate: (itm) => {},
-        supremeRender: (itm) => {},
-    });
-    itemList.push({
-        name: "Turret",
-        description: "Shoots at nearest enemy",
-        texture: textures.lol,
-        rarity: 0.9,
-        tickFunction: (itm) => {
-            console.log("SPERMAfield tick");
-        },
-        supremeInit: (itm) => {
-            itm.sup.maxUpgredes = 5;
-        },
-        supremeUpdate: (itm) => {},
-        supremeRender: (itm) => {},
-    });
-}
 function init() {
     canvas = document.getElementById("gamecanvas");
     canvas.width = 854;
@@ -656,6 +315,7 @@ function init() {
     text("LOADING...", 200, 200, 50);
 
     addListeners();
+    // import images
     // import images
     textures.obamna.src = "../img/obamna.jpg";
     if (Math.random() > 0) {
@@ -667,16 +327,12 @@ function init() {
     textures.items.forcefield.src = "../img/items/forcefield.png";
     textures.items.necoarc.src = "../img/items/neco-arc.png";
     console.log(textures);
-    initItems();
 
     camera = new cameraClass();
     player = new playerClass(0, 0);
     camera.offsetX = canvas.width / 2;
     camera.offsetY = canvas.height / 2;
     map = new mapClass();
-    // map.mapElements.push(new bush(100, 233));
-    map.mapElements.push(new square(200, 200, 60, 60));
-    map.entities.push(new enemy(100, 100, 30, 30));
     camera.x = player.x;
     camera.y = player.y;
     camera.lastX = camera.x;
@@ -684,8 +340,8 @@ function init() {
 
     windowResize();
     text("LOADING...", 200, 200, 50);
-    let numberOfXp = randomInt(11, 125);
-    for (let indx = 0; indx < numberOfXp; indx++) map.ghosts.push(new xp(randomInt(-250, 250), randomInt(-250, 250), player, 1));
+    map.entities.push(new rifle(0, 0));
+    map.players.push(new rifle(0, 0));
     requestAnimationFrame(loop);
 }
 var lastLoop = 0;
@@ -704,17 +360,13 @@ function loop() {
 }
 function update() {
     // detect collisiosn
+    console.log(map.entities);
     for (let element of map.entities) {
-        if (element.update) element.update();
-        element.isColliding = false;
-    }
-    for (let element of map.projectiles) {
         if (element.update) element.update();
         element.isColliding = false;
     }
     player.isColliding = false;
     // update map elements
-    for (let element of map.ghosts) if (element.update) element.update();
 
     if (keyPressed.includes("1")) player.gun = player.weapons.pistol;
     else if (keyPressed.includes("2")) player.gun = player.weapons.rifle;
@@ -741,25 +393,6 @@ function update() {
     // update player
     player.update();
 
-    // tick items
-    let timenow = performance.now();
-    if (lastTick + tickDelay < timenow) {
-        for (let element of player.inventory) element.tickFunction(element);
-
-        lastTick = performance.now();
-    }
-
-    // update items
-    for (let element of player.inventory) element.update();
-
-    // spawn enemies
-    var enemies = Object.keys(map.entities).length;
-    if (enemies < 50) {
-        let random = Math.random();
-        if (random < 0.5) spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
-        else spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
-    }
-
     objectsToDo.forEach((element) => {
         try {
             element.action();
@@ -784,6 +417,9 @@ function render() {
     // render all object in map
     for (let element of map.mapElements) if (element.render) element.render();
     for (let element of map.ghosts) if (element.render && !element.collected) element.render();
+    for (let element of map.players) {
+        ctx.drawImage(textures.obamna, element.x - 25, element.y - 25, 50, 50);
+    }
 
     for (let element of player.inventory) element.supremeRender(element);
     player.draw(); // render playerw
@@ -1027,19 +663,29 @@ function pakcetRequest(callback = () => {}) {
     xhr.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
     const body = JSON.stringify({
         ssid: ssid,
+        pingNumber: pingNumber,
+        keyPressed: keyPressed,
     });
     xhr.onload = () => {
         if (xhr.readyState == 4 && xhr.status == 200) {
             const respond = JSON.parse(xhr.responseText);
-            ping = Date.now() - lastPing;
-            lastPing = Date.now();
-            setTimeout(pakcetRequest, requestDelay);
-            console.log("ping", ping + "ms");
+            if (respond.pingNumber > lastPingNumber) {
+                map.entities = respond.entities;
+                map.players = respond.players;
+                player.x = respond.player.x;
+                player.y = respond.player.y;
+                ping = Date.now() - lastPing;
+                lastPing = Date.now();
+                lastPingNumber = respond.pingNumber;
+                setTimeout(pakcetRequest, requestDelay);
+                console.log("ping", ping + "ms");
+            }
         } else {
             console.log(`Error: ${xhr.status}`);
         }
     };
     xhr.send(body);
+    pingNumber++;
 }
 function getCookie(name) {
     const value = `; ${document.cookie}`;
