@@ -161,7 +161,7 @@ class game {
     }
     shoot(rifle) {
         let bullet = new bullet(rifle.x, rifle.y, 10, 10, rifle.angle, "white", textures.player);
-        console.log("shoot");
+        console.log("shoo t");
     }
 }
 class entity {
