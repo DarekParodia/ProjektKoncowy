@@ -6,11 +6,27 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(cors());
 const port = 80;
-const gamePort = 8080;
+const gamePort = 25565;
 const textures = {
     player: "obamna.jpg",
 };
 class game {
+    bullet = class {
+        constructor(x, y, width, height, angle, color, texture) {
+            this.x = x;
+            this.y = y;
+            this.vx = (Math.cos(angle) * speed) / 10;
+            this.vy = (Math.sin(angle) * speed) / 10;
+            this.isColliding = false;
+            this.width = width;
+            this.height - height;
+            this.mass = 1;
+            this.angle = angle;
+            this.color = color;
+            this.texture = texture;
+        }
+        update() {}
+    };
     enemy = class {
         constructor(x, y, width, height, color, texture) {
             this.x = x;
@@ -22,40 +38,65 @@ class game {
         }
         update() {}
     };
+
     player = class {
-        constructor(ssid, x, y, width, height, color, texture) {
+        constructor(ssid, x, y, width, height, color, texture, id) {
             this.ssid = ssid;
             this.x = x;
             this.y = y;
             this.width = width;
             this.height - height;
             this.color = color;
+            this.angle = 0;
             this.speed = 5;
             this.texture = texture;
             this.keyPressed = [];
+            this.id = id;
+            this.lastUpdate = Date.now();
+            this.rifle = new this.rifle(this.x, this.y, 10, 10, 0, "white", textures.player);
+            this.nickname = getNickname(ssid);
         }
         update(deltaTime) {
             let diagnal = false;
             if ((this.keyPressed.includes("w") && this.keyPressed.includes("a")) || (this.keyPressed.includes("w") && this.keyPressed.includes("d")) || (this.keyPressed.includes("s") && this.keyPressed.includes("a")) || (this.keyPressed.includes("s") && this.keyPressed.includes("d"))) diagnal = true;
             if (this.keyPressed.includes("w")) {
-                this.y -= diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
+                this.y -= diagnal ? (this.speed * 0.75 * deltaTime) / 20 : (this.speed * deltaTime) / 20;
             }
             if (this.keyPressed.includes("a")) {
-                this.x -= diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
+                this.x -= diagnal ? (this.speed * 0.75 * deltaTime) / 20 : (this.speed * deltaTime) / 20;
             }
             if (this.keyPressed.includes("s")) {
-                this.y += diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
+                this.y += diagnal ? (this.speed * 0.75 * deltaTime) / 20 : (this.speed * deltaTime) / 20;
             }
             if (this.keyPressed.includes("d")) {
-                this.x += diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
+                this.x += diagnal ? (this.speed * 0.75 * deltaTime) / 20 : (this.speed * deltaTime) / 20;
             }
+            this.rifle.x = this.x;
+            this.rifle.y = this.y;
+            this.rifle.angle = this.angle;
         }
+        rifle = class {
+            constructor(x, y, width, height, angle, color, texture) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height - height;
+                this.angle = angle;
+                this.color = color;
+                this.texture = texture;
+                this.lastShot = Date.now();
+                this.shootDelay = 400;
+            }
+            update() {}
+        };
     };
-    constructor() {
+    constructor(maxPlayers) {
         this.gameEntities = [];
         this.gamePlayers = [];
         this.updateDelay = 0;
         this.lastUpdate = Date.now();
+        this.timeoutTime = 3000;
+        this.maxPlayers = 10;
     }
     init() {
         this.loop();
@@ -67,38 +108,78 @@ class game {
         }, this.updateDelay);
     }
     update() {
-        console.log("update");
-
         // update players
-        for (let player of this.gamePlayers) {
-            console.log(player);
-            player.update(this.deltaTime);
-        }
         this.deltaTime = Date.now() - this.lastUpdate;
         this.lastUpdate = Date.now();
+        for (let player of this.gamePlayers) {
+            if (Date.now() - player.lastUpdate > this.timeoutTime) {
+                this.gamePlayers.splice(this.gamePlayers.indexOf(player), 1);
+
+                continue;
+            }
+            player.update(this.deltaTime);
+            if (player.isMouseDown) {
+                if (Date.now() - player.rifle.lastShot > player.rifle.shootDelay) {
+                    shoot(player.rifle);
+                    player.rifle.lastShot = Date.now();
+                }
+            }
+        }
     }
     playerUpdate(data) {
         for (let player of this.gamePlayers) {
             if (player.ssid == data.ssid) {
                 player.keyPressed = data.keyPressed;
+                player.isMouseDown = data.isMouseDown;
+                player.angle = data.angle;
+                player.lastUpdate = Date.now();
             }
         }
     }
     join(ssid) {
-        this.gamePlayers.push(new this.player(ssid, randomInt(-100, 100), randomInt(-100, 100), 10, 10, "white", textures.player));
-        return true;
-    }
-    checkIfPlayerExists(ssid) {
-        for (let player of this.gamePlayers) {
-            if (player.ssid == ssid) return true;
+        if (this.gamePlayers.length >= this.maxPlayers) return false;
+        let player = this.getPlayer(ssid);
+        if (!player) this.gamePlayers.push(new this.player(ssid, randomInt(-100, 100), randomInt(-100, 100), 10, 10, "white", textures.player, this.generateID()));
+        else {
+            player.nickname = getNickname(ssid);
         }
-        return false;
+        return true;
     }
     getPlayer(ssid) {
         for (let player of this.gamePlayers) {
             if (player.ssid == ssid) return player;
         }
         return false;
+    }
+    generateID() {
+        for (let player of this.gamePlayers) {
+            let id = 0;
+            if (player.id == id) {
+                id++;
+            } else return id;
+        }
+    }
+    shoot(rifle) {
+        let bullet = new bullet(rifle.x, rifle.y, 10, 10, rifle.angle, "white", textures.player);
+        console.log("shoot");
+    }
+}
+class entity {
+    constructor(x, y, width, height, angle, color, texture) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.angle = angle;
+        this.color = color;
+        this.texture = texture;
+    }
+    render() {
+        ctx.save();
+        ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+        ctx.rotate((this.angle * Math.PI) / 180);
+        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.drawImage(this.texture, 0, 0, this.width, this.height);
     }
 }
 class host {
@@ -109,7 +190,7 @@ class host {
         this.app.use(cors());
         this.port = port;
         this.name = name;
-        this.game = new game();
+        this.game = new game(maxPlayers);
         this.maxPlayers = maxPlayers;
         this.players = [];
         this.app.get("*", (req, res) => {
@@ -132,7 +213,11 @@ class host {
         this.app.post("/packet", (req, res) => {
             let data = req.body;
             this.game.playerUpdate(data);
-            res.send({status: "ok", entities: this.game.gameEntities, players: this.game.gamePlayers, player: this.game.getPlayer(data.ssid), pingNumber: data.pingNumber});
+            let gameEntities = [];
+            for (let element of this.game.gameEntities) {
+                gameEntities.push(new entity(element.x, element.y, element.width, element.height, element.angle ? element.angle : 0, element.color, element.texture));
+            }
+            res.send({status: "ok", entities: gameEntities, players: this.game.gamePlayers, player: this.game.getPlayer(data.ssid), pingNumber: data.pingNumber});
         });
         this.app.listen(this.port, () => {
             this.log(`Game host running at: ${this.port}`);
@@ -252,6 +337,12 @@ function checkForExistingNickname(nickname) {
         if (session.nickname == nickname) return true;
     }
     return false;
+}
+function getNickname(ssid) {
+    for (let session of sessions) {
+        if (session.ssid == ssid) return session.nickname;
+    }
+    return null;
 }
 console.log(generateSSID());
 function generateSSID() {

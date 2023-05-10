@@ -4,7 +4,7 @@ var ssid = null;
 var requestDelay = 0;
 var lastPing = 0;
 var ping = null;
-var pingNumber = 0;
+var pingNumber = 1;
 var lastPingNumber = 0;
 document.addEventListener("DOMContentLoaded", function () {
     checkForSession(() => {
@@ -82,6 +82,21 @@ function checkIfItemIsInInventory(item) {
         if (element.name == item.name) return true;
     }
     return false;
+}
+class entity {
+    constructor() {
+        this.x = 0;
+        this.y = 0;
+        this.width = 20;
+        this.height = 20;
+        this.color = "red";
+        this.texture = null;
+    }
+    render() {
+        ctx.fillRect(x, y, this.width, this.height);
+        ctx.drawImage(this.texture, this.x, this.y, this.width, this.height);
+    }
+    update() {}
 }
 class rifle {
     constructor(parent) {
@@ -232,21 +247,6 @@ class playerClass {
             this.health = 0;
             this.death();
         }
-        this.gun.update();
-        let diagnal = false;
-        if ((keyPressed.includes("w") && keyPressed.includes("a")) || (keyPressed.includes("w") && keyPressed.includes("d")) || (keyPressed.includes("s") && keyPressed.includes("a")) || (keyPressed.includes("s") && keyPressed.includes("d"))) diagnal = true;
-        if (keyPressed.includes("w")) {
-            this.y -= diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
-        }
-        if (keyPressed.includes("a")) {
-            this.x -= diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
-        }
-        if (keyPressed.includes("s")) {
-            this.y += diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
-        }
-        if (keyPressed.includes("d")) {
-            this.x += diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
-        }
         camera.x = this.x - camera.offsetX + resDiffX;
         camera.y = this.y - camera.offsetY + resDiffY;
         if (this.xp >= this.xpToNextLevel) {
@@ -360,7 +360,7 @@ function loop() {
 }
 function update() {
     // detect collisiosn
-    console.log(map.entities);
+    // console.log(map.entities);
     for (let element of map.entities) {
         if (element.update) element.update();
         element.isColliding = false;
@@ -377,11 +377,6 @@ function update() {
     let playerPosx = canvasPosisitons.x + canvas.width / 2;
     let playerPosy = canvasPosisitons.y + canvas.height / 2;
     player.angle = Math.atan2(mouse.y - playerPosy, mouse.x - playerPosx);
-
-    // shoot wepons
-    if (isMouseDown && performance.now() - player.gun.lastShot >= player.gun.shotspeed) {
-        player.gun.shoot();
-    }
 
     objectsToDelete.forEach((element) => {
         try {
@@ -418,8 +413,30 @@ function render() {
     for (let element of map.mapElements) if (element.render) element.render();
     for (let element of map.ghosts) if (element.render && !element.collected) element.render();
     for (let element of map.players) {
-        ctx.drawImage(textures.obamna, element.x - 25, element.y - 25, 50, 50);
+        text(element.nickname, element.x - 25, element.y - 50);
+        if (element.id != player.id) {
+            let degreeAngle = element.angle * (180 / Math.PI);
+            if (degreeAngle > -90 && degreeAngle < 90) {
+                // draw player
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.translate(-element.x - 16, element.y - 21);
+                ctx.drawImage(textures.obamna, 0, 0, 32, 42);
+                ctx.restore();
+            } else {
+                ctx.drawImage(textures.obamna, element.x - 16, element.y - 21, 32, 42);
+            }
+            // draw nickname
+            ctx.fillStyle = "white";
+            ctx.save();
+            ctx.translate(element.rifle.x, element.rifle.y);
+            ctx.rotate(element.rifle.angle);
+            ctx.fillStyle = "red";
+            ctx.fillRect(20, -5, 20, 10);
+            ctx.restore();
+        }
     }
+    for (let element of map.entities) if (element.render) element.render();
 
     for (let element of player.inventory) element.supremeRender(element);
     player.draw(); // render playerw
@@ -665,15 +682,19 @@ function pakcetRequest(callback = () => {}) {
         ssid: ssid,
         pingNumber: pingNumber,
         keyPressed: keyPressed,
+        isMouseDown: isMouseDown,
+        angle: player.angle,
     });
     xhr.onload = () => {
         if (xhr.readyState == 4 && xhr.status == 200) {
             const respond = JSON.parse(xhr.responseText);
+            console.log(respond);
             if (respond.pingNumber > lastPingNumber) {
                 map.entities = respond.entities;
                 map.players = respond.players;
                 player.x = respond.player.x;
                 player.y = respond.player.y;
+                player.id = respond.player.id;
                 ping = Date.now() - lastPing;
                 lastPing = Date.now();
                 lastPingNumber = respond.pingNumber;
