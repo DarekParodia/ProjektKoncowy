@@ -12,20 +12,40 @@ const textures = {
 };
 class game {
     bullet = class {
-        constructor(x, y, width, height, angle, color, texture) {
+        constructor(x, y, width, height, angle, color, texture, owner) {
             this.x = x;
             this.y = y;
-            this.vx = (Math.cos(angle) * speed) / 10;
-            this.vy = (Math.sin(angle) * speed) / 10;
+            this.speed = 30;
+            this.vx = (Math.cos(angle) * this.speed) / 10;
+            this.vy = (Math.sin(angle) * this.speed) / 10;
             this.isColliding = false;
             this.width = width;
-            this.height - height;
+            this.height = height;
             this.mass = 1;
             this.angle = angle;
             this.color = color;
             this.texture = texture;
+            this.owner = owner;
+            this.lifespan = 5000;
+            this.creationTime = Date.now();
+            this.damage = 10;
         }
-        update() {}
+        update(deltaTime, game) {
+            this.x += this.vx * deltaTime;
+            this.y += this.vy * deltaTime;
+            if (Date.now() > this.creationTime + this.lifespan) this.destroy(game);
+            for (let player of game.gamePlayers) {
+                if (player.id != this.owner.id) {
+                    if (rectIntersect(player.x + player.width / 2, player.y + player.height / 2, player.width, player.height, this.x, this.y, this.width, this.height)) {
+                        player.health -= this.damage;
+                        this.destroy(game);
+                    }
+                }
+            }
+        }
+        destroy(game) {
+            game.destroyObject(game.gameEntities, this);
+        }
     };
     enemy = class {
         constructor(x, y, width, height, color, texture) {
@@ -55,6 +75,8 @@ class game {
             this.lastUpdate = Date.now();
             this.rifle = new this.rifle(this.x, this.y, 10, 10, 0, "white", textures.player);
             this.nickname = getNickname(ssid);
+            this.health = 100;
+            this.maxHealth = 100;
         }
         update(deltaTime) {
             let diagnal = false;
@@ -93,10 +115,13 @@ class game {
     constructor(maxPlayers) {
         this.gameEntities = [];
         this.gamePlayers = [];
+        this.objectsToDelete = [];
         this.updateDelay = 0;
         this.lastUpdate = Date.now();
+        this.deltaTime = 0;
         this.timeoutTime = 3000;
         this.maxPlayers = 10;
+        this.objectsToDo = [];
     }
     init() {
         this.loop();
@@ -112,19 +137,43 @@ class game {
         this.deltaTime = Date.now() - this.lastUpdate;
         this.lastUpdate = Date.now();
         for (let player of this.gamePlayers) {
+            if (!player) continue;
+            if (player.health <= 0) {
+                this.destroyObject(this.gamePlayers, player);
+                continue;
+            }
             if (Date.now() - player.lastUpdate > this.timeoutTime) {
-                this.gamePlayers.splice(this.gamePlayers.indexOf(player), 1);
-
+                this.destroyObject(this.gamePlayers, player);
+                this.doAfterUpdate(() => {
+                    this.join(player.ssid);
+                });
                 continue;
             }
             player.update(this.deltaTime);
             if (player.isMouseDown) {
                 if (Date.now() - player.rifle.lastShot > player.rifle.shootDelay) {
-                    shoot(player.rifle);
+                    this.shoot(player.rifle, player);
                     player.rifle.lastShot = Date.now();
                 }
             }
         }
+        for (let element of this.gameEntities) {
+            if (element.update) element.update(this.deltaTime, this);
+        }
+        this.objectsToDelete.forEach((element) => {
+            try {
+                element.array.splice(element.array.indexOf(element.element), 1);
+            } catch (e) {}
+        });
+        this.objectsToDelete = [];
+        this.objectsToDo.forEach((element) => {
+            try {
+                element.action();
+            } catch (e) {
+                console.error(e);
+            }
+        });
+        this.objectsToDo = [];
     }
     playerUpdate(data) {
         for (let player of this.gamePlayers) {
@@ -159,9 +208,17 @@ class game {
             } else return id;
         }
     }
-    shoot(rifle) {
-        let bullet = new bullet(rifle.x, rifle.y, 10, 10, rifle.angle, "white", textures.player);
-        console.log("shoo t");
+    shoot(rifle, owner) {
+        let bullet = new this.bullet(rifle.x, rifle.y, 10, 10, rifle.angle, "white", null, owner);
+        this.gameEntities.push(bullet);
+    }
+    destroyObject(array, element) {
+        this.objectsToDelete.push({array: array, element: element});
+    }
+    doAfterUpdate(callback) {
+        this.objectsToDo.push({
+            action: callback,
+        });
     }
 }
 class entity {
@@ -343,6 +400,17 @@ function getNickname(ssid) {
         if (session.ssid == ssid) return session.nickname;
     }
     return null;
+}
+function checkCollision(parent, element) {
+    let hitboxX = parent.width > element.width ? parent.width : element.width;
+    let hitboxY = parent.height > element.height ? parent.height : element.height;
+    return Math.abs(parent.x - element.x) < hitboxX && Math.abs(parent.y - element.y) < hitboxY;
+}
+function rectIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
+    if (x2 > w1 + x1 || x1 > w2 + x2 || y2 > h1 + y1 || y1 > h2 + y2) {
+        return false;
+    }
+    return true;
 }
 console.log(generateSSID());
 function generateSSID() {

@@ -414,7 +414,7 @@ function render() {
     for (let element of map.ghosts) if (element.render && !element.collected) element.render();
     for (let element of map.players) {
         text(element.nickname, element.x - 25, element.y - 50);
-        if (element.id != player.id) {
+        if (true || element.id != player.id) {
             let degreeAngle = element.angle * (180 / Math.PI);
             if (degreeAngle > -90 && degreeAngle < 90) {
                 // draw player
@@ -434,9 +434,26 @@ function render() {
             ctx.fillStyle = "red";
             ctx.fillRect(20, -5, 20, 10);
             ctx.restore();
+
+            // draw health
+            ctx.fillStyle = "red";
+            ctx.fillRect(element.x - 25, element.y - 50, 50, 5);
+            ctx.fillStyle = "green";
+            ctx.fillRect(element.x - 25, element.y - 50, 50 * (element.health / element.maxHealth), 5);
         }
     }
-    for (let element of map.entities) if (element.render) element.render();
+    for (let element of map.entities) {
+        if (element.render) element.render();
+        else {
+            ctx.fillStyle = element.color;
+            ctx.save();
+            ctx.translate(element.x, element.y);
+            ctx.rotate(element.angle);
+            ctx.fillRect(0, 0, element.width, element.height);
+            if (element.texture) ctx.drawImage(element.texture, 0, 0, element.width, element.height);
+            ctx.restore();
+        }
+    }
 
     for (let element of player.inventory) element.supremeRender(element);
     player.draw(); // render playerw
@@ -695,6 +712,7 @@ function pakcetRequest(callback = () => {}) {
                 player.x = respond.player.x;
                 player.y = respond.player.y;
                 player.id = respond.player.id;
+                player.health = respond.player.health;
                 ping = Date.now() - lastPing;
                 lastPing = Date.now();
                 lastPingNumber = respond.pingNumber;
