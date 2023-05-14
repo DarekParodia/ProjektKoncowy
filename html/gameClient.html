@@ -5,10 +5,11 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Singleplayer</title>
+    <title id="title">MultiPlayer</title>
     <link rel="stylesheet" href="../css/default.css">
     <link rel="stylesheet" href="../css/game.css">
     <link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
+    <link href='http://fonts.googleapis.com/css?family=Roboto Mono' rel='stylesheet' type='text/css'>
     <script src="../js/client.js"></script>
 </head>
 
@@ -44,10 +45,31 @@
         <canvas id="gamecanvas">
 
         </canvas>
-        <div id="chatdiv">
-            <div id="chat-content"></div>
-            <input type="text">
-            <button>wyslij</button>
+        <div id="info">
+
+            <h3 id="displayname">DarekParodia</h3>
+            <h3 id="kills">K: 100</h3>
+            <h3 id="deaths">D: 100</h3>
+            <h3 id="kd">K/D: 1</h3>
+            <h3 id="slots">4/100 Graczy</h3>
+            <h3 id="ping">Ping 3ms</h3>
+
+
+        </div>
+        <div id="leaderboard">
+
+        </div>
+        <div id="chat-div" class="chat-div-closed chat-div-default">
+            <div class="contentrow">
+                <div id="chat-content"></div>
+                <div id="chat-close-button">
+                    <div></div>
+                </div>
+            </div>
+            <div class="inputrow">
+                <input type="text" id="chat-input" maxlength="100">
+                <button id="chat-button" onclick="chatSubmit()">></button>
+            </div>
         </div>
         <div id="jsmenu">
             <div id="itempicker" class="flexcntr flxcol">

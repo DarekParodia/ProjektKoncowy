@@ -10,6 +10,7 @@ const gamePort = 25565;
 const textures = {
     player: "obamna.jpg",
 };
+const colors = ["red", "lightblue", "MediumSeaGreen", "yellow", "orange", "purple", "pink", "white"];
 class game {
     bullet = class {
         constructor(x, y, width, height, angle, color, texture, owner) {
@@ -35,10 +36,17 @@ class game {
             this.y += this.vy * deltaTime;
             if (Date.now() > this.creationTime + this.lifespan) this.destroy(game);
             for (let player of game.gamePlayers) {
+                if (player.dead) continue;
                 if (player.id != this.owner.id) {
                     if (rectIntersect(player.x + player.width / 2, player.y + player.height / 2, player.width, player.height, this.x, this.y, this.width, this.height)) {
                         player.health -= this.damage;
                         this.destroy(game);
+                        if (player.health <= 0) {
+                            this.owner.kills++;
+                            player.deaths++;
+                            this.owner.health += 10;
+                            if (this.owner.health > this.owner.maxHealth) this.owner.health = this.owner.maxHealth;
+                        }
                     }
                 }
             }
@@ -77,6 +85,8 @@ class game {
             this.nickname = getNickname(ssid);
             this.health = 100;
             this.maxHealth = 100;
+            this.kills = 0;
+            this.deaths = 0;
         }
         update(deltaTime) {
             let diagnal = false;
@@ -107,7 +117,7 @@ class game {
                 this.color = color;
                 this.texture = texture;
                 this.lastShot = Date.now();
-                this.shootDelay = 400;
+                this.shootDelay = 300;
             }
             update() {}
         };
@@ -138,17 +148,23 @@ class game {
         this.lastUpdate = Date.now();
         for (let player of this.gamePlayers) {
             if (!player) continue;
-            if (player.health <= 0) {
-                this.destroyObject(this.gamePlayers, player);
+            player.timeToRespawn -= this.deltaTime;
+            if (player.timeToRespawn <= 0 && player.dead) {
+                player.dead = false;
+                player.health = player.maxHealth;
+                player.x = Math.random() * 200;
+                player.y = Math.random() * 200;
+            }
+            if (player.health <= 0 && !player.dead) {
+                player.dead = true;
+                player.timeToRespawn = 5000;
                 continue;
             }
             if (Date.now() - player.lastUpdate > this.timeoutTime) {
                 this.destroyObject(this.gamePlayers, player);
-                this.doAfterUpdate(() => {
-                    this.join(player.ssid);
-                });
                 continue;
             }
+            if (player.dead) continue;
             player.update(this.deltaTime);
             if (player.isMouseDown) {
                 if (Date.now() - player.rifle.lastShot > player.rifle.shootDelay) {
@@ -239,6 +255,15 @@ class entity {
         ctx.drawImage(this.texture, 0, 0, this.width, this.height);
     }
 }
+class chatMessage {
+    constructor(text, ssid, date) {
+        if (text.length > 100) text = text.substring(0, 100);
+        this.text = text;
+        this.nickname = getNickname(ssid);
+        this.date = date;
+        this.color = getNicknameColor(ssid);
+    }
+}
 class host {
     constructor(port, name, maxPlayers) {
         this.app = new express();
@@ -250,6 +275,7 @@ class host {
         this.game = new game(maxPlayers);
         this.maxPlayers = maxPlayers;
         this.players = [];
+        this.chat = [];
         this.app.get("*", (req, res) => {
             this.log("get request received");
             res.redirect("http://" + req.headers.host.split(":")[0] + req.url);
@@ -257,9 +283,11 @@ class host {
         // this.app.post("*", (req, res) => {
         //     this.log("post request received: " + req.originalUrl);
         // });
-        this.app.post("/ping", (req, res) => {
+        this.app.post("/message", (req, res) => {
             let data = req.body;
-            res.send("pong");
+            this.log("message request received: " + data.message);
+            this.chat.push(new chatMessage(data.message, data.ssid, Date.now()));
+            res.send({status: "ok"});
         });
         this.app.post("/connect", (req, res) => {
             let data = req.body;
@@ -271,10 +299,16 @@ class host {
             let data = req.body;
             this.game.playerUpdate(data);
             let gameEntities = [];
+            let newMessages = [];
+            for (let message of this.chat) {
+                if (message.date > data.lastMessageDate) {
+                    newMessages.push(message);
+                }
+            }
             for (let element of this.game.gameEntities) {
                 gameEntities.push(new entity(element.x, element.y, element.width, element.height, element.angle ? element.angle : 0, element.color, element.texture));
             }
-            res.send({status: "ok", entities: gameEntities, players: this.game.gamePlayers, player: this.game.getPlayer(data.ssid), pingNumber: data.pingNumber});
+            res.send({status: "ok", entities: gameEntities, players: this.game.gamePlayers, player: this.game.getPlayer(data.ssid), pingNumber: data.pingNumber, messages: newMessages, maxPlayers: this.maxPlayers});
         });
         this.app.listen(this.port, () => {
             this.log(`Game host running at: ${this.port}`);
@@ -342,6 +376,7 @@ app.post("/nickchange", (req, res) => {
     console.log(req.body);
     let ssid = req.body.ssid;
     if (checkForExistingNickname(req.body.nickname)) res.send({status: "nick exists"});
+    if (req.body.nickname.length > 12) req.body.nickname = req.body.nickname.substring(0, 12);
     for (let session of sessions) {
         if (session.ssid == ssid) {
             session.nickname = req.body.nickname;
@@ -358,10 +393,12 @@ app.post("/login", (req, res) => {
         return;
     }
     let ssid = generateSSID();
+    if (data.nickname.length > 12) data.nickname = data.nickname.substring(0, 12);
     let session = {
         nickname: data.nickname,
         server: null,
         ssid: ssid,
+        color: getRandomColor(),
     };
     sessions.push(session);
     res.send({ssid: ssid});
@@ -369,8 +406,8 @@ app.post("/login", (req, res) => {
 
 app.listen(port, () => {
     console.log(`Strona aktywna pod portem: ${port}`);
-    createLobby("Main Server", 100);
-    for (let i = 0; i < 2; i++) createLobby("Test Server" + i, 0);
+    createLobby("Main Server", 20);
+    //for (let i = 0; i < 2; i++) createLobby("Test Server" + i, 0);
 });
 function createLobby(name, maxPlayers = 10, password = "") {
     let server = new host(gamePort + serverList.length, name, maxPlayers);
@@ -401,6 +438,9 @@ function getNickname(ssid) {
     }
     return null;
 }
+function getRandomColor() {
+    return colors[randomInt(0, colors.length - 1)];
+}
 function checkCollision(parent, element) {
     let hitboxX = parent.width > element.width ? parent.width : element.width;
     let hitboxY = parent.height > element.height ? parent.height : element.height;
@@ -421,4 +461,9 @@ function generateSSID() {
         if (!sessions.find((element) => element.ssid == ssid)) exists = false;
     }
     return ssid;
+}
+function getNicknameColor(ssid) {
+    let session = sessions.find((element) => element.ssid == ssid);
+    if (session) return session.color;
+    return null;
 }

@@ -5,13 +5,19 @@ var requestDelay = 0;
 var lastPing = 0;
 var ping = null;
 var pingNumber = 1;
+var chat = [];
+var chatOpen = false;
+var chatTyping = false;
+var lastInfoUpdate = 0;
+var infoUpdateDelay = 1000;
+var maxPlayers = 0;
+var numberOfPlayers = 0;
 var lastPingNumber = 0;
 document.addEventListener("DOMContentLoaded", function () {
     checkForSession(() => {
         getServer(() => {
             connect(() => {
                 console.log("connected");
-                setTimeout(pakcetRequest, requestDelay);
                 init();
             });
         });
@@ -31,6 +37,7 @@ var textures = {
         forcefield: new Image(20, 20),
         necoarc: new Image(20, 20),
     },
+    k4: new Image(20, 20),
 };
 var oldResX = 0;
 var oldResY = 0;
@@ -46,6 +53,7 @@ var mouse = {
 var objectsToDelete = [];
 var objectsToDo = [];
 var tickDelay = 150;
+var info;
 
 function numberOfSpawnedItems() {
     let count = 0;
@@ -243,9 +251,12 @@ class playerClass {
         this.itemsToPick = [];
     }
     update() {
+        this.kd = this.kills / this.deaths;
+        if (isNaN(this.kd)) this.kd = 0;
+        if (this.kd == Infinity) this.kd = this.kills;
+        this.kd = this.kd.toFixed(2);
         if (this.health <= 0) {
             this.health = 0;
-            this.death();
         }
         camera.x = this.x - camera.offsetX + resDiffX;
         camera.y = this.y - camera.offsetY + resDiffY;
@@ -259,6 +270,7 @@ class playerClass {
         this.gun.shotspeed = this.gun.baseShotspeed * this.atkspd;
     }
     draw() {
+        if (this.dead) return;
         let degreeAngle = this.angle * (180 / Math.PI);
         if (degreeAngle > -90 && degreeAngle < 90) {
             // draw player
@@ -314,6 +326,15 @@ function init() {
     ctx = canvas.getContext("2d");
     text("LOADING...", 200, 200, 50);
 
+    info = {
+        nickname: document.getElementById("displayname"),
+        kills: document.getElementById("kills"),
+        deaths: document.getElementById("deaths"),
+        kd: document.getElementById("kd"),
+        slots: document.getElementById("slots"),
+        ping: document.getElementById("ping"),
+    };
+
     addListeners();
     // import images
     // import images
@@ -326,6 +347,7 @@ function init() {
     textures.necoarc.src = "../img/neco-arc.png";
     textures.items.forcefield.src = "../img/items/forcefield.png";
     textures.items.necoarc.src = "../img/items/neco-arc.png";
+    textures.k4.src = "../img/k4.png";
     console.log(textures);
 
     camera = new cameraClass();
@@ -342,6 +364,7 @@ function init() {
     text("LOADING...", 200, 200, 50);
     map.entities.push(new rifle(0, 0));
     map.players.push(new rifle(0, 0));
+    pakcetRequest();
     requestAnimationFrame(loop);
 }
 var lastLoop = 0;
@@ -413,34 +436,37 @@ function render() {
     for (let element of map.mapElements) if (element.render) element.render();
     for (let element of map.ghosts) if (element.render && !element.collected) element.render();
     for (let element of map.players) {
-        text(element.nickname, element.x - 25, element.y - 50);
-        if (true || element.id != player.id) {
-            let degreeAngle = element.angle * (180 / Math.PI);
-            if (degreeAngle > -90 && degreeAngle < 90) {
-                // draw player
+        try {
+            if (element.dead) continue;
+            text(element.nickname, element.x - element.nickname.length * 6, element.y - 50, 20, "white", "Roboto Mono");
+            if (true || element.id != player.id) {
+                let degreeAngle = element.angle * (180 / Math.PI);
+                if (degreeAngle > -90 && degreeAngle < 90) {
+                    // draw player
+                    ctx.save();
+                    ctx.scale(-1, 1);
+                    ctx.translate(-element.x - 16, element.y - 21);
+                    ctx.drawImage(textures.obamna, 0, 0, 32, 42);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(textures.obamna, element.x - 16, element.y - 21, 32, 42);
+                }
+                // draw rifle
+                ctx.fillStyle = "white";
                 ctx.save();
-                ctx.scale(-1, 1);
-                ctx.translate(-element.x - 16, element.y - 21);
-                ctx.drawImage(textures.obamna, 0, 0, 32, 42);
+                ctx.translate(element.rifle.x, element.rifle.y);
+                ctx.rotate(element.rifle.angle);
+                ctx.fillStyle = "red";
+                ctx.fillRect(20, -5, 20, 10);
                 ctx.restore();
-            } else {
-                ctx.drawImage(textures.obamna, element.x - 16, element.y - 21, 32, 42);
-            }
-            // draw nickname
-            ctx.fillStyle = "white";
-            ctx.save();
-            ctx.translate(element.rifle.x, element.rifle.y);
-            ctx.rotate(element.rifle.angle);
-            ctx.fillStyle = "red";
-            ctx.fillRect(20, -5, 20, 10);
-            ctx.restore();
 
-            // draw health
-            ctx.fillStyle = "red";
-            ctx.fillRect(element.x - 25, element.y - 50, 50, 5);
-            ctx.fillStyle = "green";
-            ctx.fillRect(element.x - 25, element.y - 50, 50 * (element.health / element.maxHealth), 5);
-        }
+                // draw health
+                ctx.fillStyle = "lightcoral";
+                ctx.fillRect(element.x - element.nickname.length * 6, element.y - 35, element.nickname.length * 12, 7);
+                ctx.fillStyle = "lightgreen";
+                ctx.fillRect(element.x - element.nickname.length * 6, element.y - 35, element.nickname.length * 12 * (element.health / element.maxHealth), 7);
+            }
+        } catch (e) {}
     }
     for (let element of map.entities) {
         if (element.render) element.render();
@@ -467,7 +493,8 @@ function renderHud() {
         text("FPS: " + Math.round(FPS * 100) / 100, camera.x + 10, camera.y + 25);
         text("DeltaTime: " + Math.round(deltaTime * 100) / 100 + "ms", camera.x + 10, camera.y + 45);
         text("Player HP: " + player.health, camera.x + 10, camera.y + 65);
-        text("Player XP: " + player.xp, camera.x + 10, camera.y + 85);
+        text("ssid: " + player.ssid, camera.x + 10, camera.y + 85);
+        text("ping: " + ping + "ms", camera.x + 10, camera.y + 105);
     }
     // player health
     ctx.fillStyle = "lightcoral";
@@ -484,100 +511,57 @@ function renderHud() {
     if (player.gun.isReloading) text("Reloading...", camera.x + canvas.width - 150, camera.y + canvas.height - 10);
     else text(player.gun.ammo + " / " + player.gun.maxAmmo, camera.x + canvas.width - 40 - textOffest, camera.y + canvas.height - 10);
 
-    // player xp
-    ctx.fillStyle = "rgba(173, 173, 173, 0.39)";
-    let lwidth = canvas.width * 0.9;
-    ctx.fillRect(camera.x + (canvas.width - lwidth) / 2, camera.y + 40, lwidth, 15);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.39)";
-    let xp = player.xp;
-    let xpToNextLevel = player.xpToNextLevel;
-    let xpPercentage = xp / xpToNextLevel;
-    ctx.fillRect(camera.x + (canvas.width - lwidth) / 2, camera.y + 40, lwidth * xpPercentage, 15);
-    text(xp + " / " + xpToNextLevel, camera.x + canvas.width / 2 - getTextWidth(xp + " / " + xpToNextLevel) / 2, camera.y + 35);
-    text("Poziom: " + player.lvl, camera.x + (canvas.width - lwidth) / 2, camera.y + 30);
-
     // player shoot delay
-    ctx.fillStyle = "rgb(255, 165, 0)";
-    let shootDelay = performance.now() - player.gun.lastShot;
-    let shootDelayPercentage = shootDelay / player.gun.baseShotspeed > 1 ? 1 : shootDelay / player.gun.baseShotspeed;
-    if (player.gun.isReloading) shootDelayPercentage = 0;
-    ctx.fillRect(player.x - player.width / 2, player.y - player.height / 2 - 10, player.width * shootDelayPercentage, 5);
-
-    // player stats
-
-    if (player.skillpoints > 0) {
-        text("HP: " + player.maxHealth + " +", camera.x, camera.y + canvas.height / 2 - 100);
-        text("ATK: " + Math.round(player.atk * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 80);
-        text("ATKSPD: " + Math.round(player.atkspd * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 60);
-        text("MAXAMO: " + Math.round(player.maxamo * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 40);
-        text("WLKSPD: " + Math.round(player.spd * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 20);
-    } else {
-        text("HP: " + player.maxHealth, camera.x, camera.y + canvas.height / 2 - 100);
-        text("ATK: " + Math.round(player.atk * 100) / 100, camera.x, camera.y + canvas.height / 2 - 80);
-        text("ATKSPD: " + Math.round(player.atkspd * 100) / 100, camera.x, camera.y + canvas.height / 2 - 60);
-        text("MAXAMO: " + Math.round(player.maxamo * 100) / 100, camera.x, camera.y + canvas.height / 2 - 40);
-        text("WLKSPD: " + Math.round(player.spd * 100) / 100, camera.x, camera.y + canvas.height / 2 - 20);
-    }
-
-    // player items
-    let row = 0;
-    let c = 0;
-    let maxItemsInRow = 10;
-    let maxCols = 3;
-    let maxItems = maxItemsInRow * maxCols;
-    maxItems = maxItems < player.inventory.length ? maxItems : player.inventory.length;
-    for (let i = 0; i < maxItems; i++) {
-        if (i % maxItemsInRow == 0 && row < maxCols) {
-            row++;
-            c = 0;
-        }
-        const element = player.inventory[player.inventory.length - i - 1];
-        let spacing = 10;
-        let size = 20;
-        let x = camera.x + +spacing * row + size * row - size;
-        let y = camera.y + canvas.height / 2 + spacing * c + size * c;
-        element.x = x;
-        element.y = y;
-        element.width = size;
-        element.height = size;
-        element.render();
-        if (row >= maxCols && c >= maxItemsInRow - 1 && player.inventory.length > maxItems) {
-            ctx.fillStyle = `rgba(0, 0, 0, 0.5)`;
-            ctx.fillRect(x, y, size, size);
-            text("•••", x + 1, y + size / 1.3, 17, `rgba(0, 0, 0, 0.82)`);
-        }
-        c++;
-        if (i > maxItems) break;
-    }
-
-    // item choosing
-    let r = document.querySelector(":root");
-    if (player.pickingItem) {
-        r.style.setProperty("--pickerDisplay", "flex");
-
-        for (let i = 0; i < player.itemsToPick.length; i++) {
-            let itemDiv = document.getElementById("item" + i);
-            let itemImg = document.querySelector(`#item${i} > img`);
-            let itemName = document.querySelector(`#item${i} > h2`);
-            let itemDesc = document.querySelector(`#item${i} > p`);
-            itemDiv.style.display = "flex";
-            itemDiv.style.visibility = "visible";
-            itemImg.src = player.itemsToPick[i].texture.src;
-            if (itemName.innerHTML != player.itemsToPick[i].name) itemName.innerHTML = player.itemsToPick[i].name;
-            if (itemDesc.innerHTML != player.itemsToPick[i].description) itemDesc.innerHTML = player.itemsToPick[i].description;
-        }
-    } else {
-        r.style.setProperty("--pickerDisplay", "none");
-    }
-    text(" ");
+    // ctx.fillStyle = "rgb(255, 165, 0)";
+    // let shootDelay = performance.now() - player.gun.lastShot;
+    // let shootDelayPercentage = shootDelay / player.gun.baseShotspeed > 1 ? 1 : shootDelay / player.gun.baseShotspeed;
+    // if (player.gun.isReloading) shootDelayPercentage = 0;
+    // ctx.fillRect(player.x - player.width / 2, player.y - player.height / 2 - 10, player.width * shootDelayPercentage, 5);
 
     // death screen
     if (player.dead) {
-        text("Zginąłeś", camera.x, camera.y + canvas.height / 4 - 100);
-        text("Naciśnij F5 aby zacząć od nowa", camera.x, camera.y + canvas.height / 4 - 80);
+        let text1 = "Zginąłeś!";
+        let text2 = "Odrodzisz się za: " + Math.ceil(player.timeToRespawn / 10) / 100;
+        text(text1, camera.x + canvas.width / 2 - text1.length * 12, camera.y + canvas.height / 2, 60, "red");
+        console.log(text2.length * 4.5);
+        text(text2, camera.x + canvas.width / 2 - 130, camera.y + canvas.height / 2 + 50, 20, "red");
+        text("Sekund", camera.x + canvas.width / 2 + 75, camera.y + canvas.height / 2 + 50, 20, "red");
+    }
+
+    // info
+    if (lastInfoUpdate + 1000 < performance.now()) {
+        infoUpdate();
+    }
+    if (player.lastKills != player.kills) {
+        player.lastKills = player.kills;
+        infoUpdate();
+    }
+    if (player.lastDeaths != player.deaths) {
+        player.lastDeaths = player.deaths;
+        infoUpdate();
+    }
+    if (player.lastKD != player.kd) {
+        player.lastKD = player.kd;
+        infoUpdate();
+    }
+    if (player.lastNickname != player.nickname) {
+        player.lastNickname = player.nickname;
+        infoUpdate();
+    }
+    if (player.lastMaxPlayers != maxPlayers) {
+        player.lastMaxPlayers = maxPlayers;
+        infoUpdate();
     }
 }
-
+function infoUpdate() {
+    if (info.nickname.innerHTML != player.nickname) info.nickname.innerHTML = player.nickname;
+    if (info.ping.innerHTML != "Ping " + ping + "ms") info.ping.innerHTML = "Ping " + ping + "ms";
+    if (info.kills.innerHTML != "K: " + player.kills) info.kills.innerHTML = "K: " + player.kills;
+    if (info.deaths.innerHTML != "D: " + player.deaths) info.deaths.innerHTML = "D: " + player.deaths;
+    if (info.kd.innerHTML != "K/D: " + player.kd) info.kd.innerHTML = "K/D: " + player.kd;
+    if (info.slots.innerHTML != numberOfPlayers + "/" + maxPlayers) info.slots.innerHTML = numberOfPlayers + "/" + maxPlayers;
+    lastInfoUpdate = performance.now();
+}
 document.addEventListener(onkeydown, () => {});
 
 function getTextWidth(text) {
@@ -586,32 +570,26 @@ function getTextWidth(text) {
 function addListeners() {
     window.addEventListener("keydown", (e) => {
         var key = e.key.toLowerCase();
-        if (!keyPressed.includes(key)) keyPressed.push(key);
-        if (key == "q") spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
-        if (key == "e") spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
-        if (key == "t") spawnRandomItem(randomInt(-100, 100), randomInt(-100, 100));
-        if (key == "f2") debugMode = !debugMode;
-        if (key == "1" && player.skillpoints > 0) {
-            player.maxHealth += 5;
-            player.health += 5;
-            player.skillpoints--;
+        if (!keyPressed.includes(key) && !chatTyping) keyPressed.push(key);
+        // check for enter
+        if (key == "enter") {
+            if (!chatOpen) {
+                openChat();
+                document.getElementById("chat-input").focus();
+            } else chatSubmit();
         }
-        if (key == "2" && player.skillpoints > 0) {
-            player.atk += 0.05;
-            player.skillpoints--;
+        if (key == "escape") {
+            if (chatOpen) closeChat();
         }
-        if (key == "3" && player.skillpoints > 0) {
-            player.atkspd += 0.05;
-            player.skillpoints--;
+        if (key == "f2") {
+            debugMode = !debugMode;
         }
-        if (key == "4" && player.skillpoints > 0) {
-            player.maxamo += 0.05;
-            player.skillpoints--;
-        }
-        if (key == "5" && player.skillpoints > 0) {
-            player.spd += 0.05;
-            player.skillpoints--;
-        }
+    });
+    document.getElementById("chat-input").addEventListener("focusin", (e) => {
+        chatTyping = true;
+    });
+    document.getElementById("chat-input").addEventListener("focusout", (e) => {
+        chatTyping = false;
     });
     window.addEventListener("keyup", (e) => {
         var key = e.key.toLowerCase();
@@ -634,6 +612,24 @@ function addListeners() {
             if (player.pickingItem) player.chooseItem(i);
         });
     }
+    document.getElementById("chat-close-button").addEventListener("click", (e) => {
+        chatOpen = !chatOpen;
+        if (chatOpen) {
+            openChat();
+        } else {
+            closeChat();
+        }
+    });
+}
+function openChat() {
+    chatOpen = true;
+    document.getElementById("chat-div").setAttribute("class", "chat-div chat-div-default");
+}
+function closeChat() {
+    chatOpen = false;
+    document.getElementById("chat-div").setAttribute("class", "chat-div-closed chat-div-default");
+    // unfocus chat input
+    document.getElementById("chat-input").blur();
 }
 function windowResize() {
     oldResX = canvas.width;
@@ -654,10 +650,10 @@ function windowResize() {
     r.style.setProperty("--pickerX", canvas.width / 8 + "px");
     r.style.setProperty("--pickerY", canvas.height / 8 + "px");
 }
-function text(text, x, y, size = 20, color = "white") {
+function text(text, x, y, size = 20, color = "white", font = "Arial") {
     let tmp = ctx.fillStyle;
     ctx.fillStyle = color;
-    ctx.font = size + "px Arial";
+    ctx.font = size + "px " + font;
     ctx.fillText(text, x, y);
     ctx.fillStyle = tmp;
 }
@@ -699,25 +695,48 @@ function pakcetRequest(callback = () => {}) {
         ssid: ssid,
         pingNumber: pingNumber,
         keyPressed: keyPressed,
-        isMouseDown: isMouseDown,
+        isMouseDown: chatTyping ? false : isMouseDown,
         angle: player.angle,
+        lastMessageDate: chat.length > 0 ? chat[chat.length - 1].date : 0,
     });
     xhr.onload = () => {
         if (xhr.readyState == 4 && xhr.status == 200) {
             const respond = JSON.parse(xhr.responseText);
-            console.log(respond);
+            // console.log(respond);
             if (respond.pingNumber > lastPingNumber) {
                 map.entities = respond.entities;
                 map.players = respond.players;
+                player.nickname = respond.player.nickname;
+                player.kills = respond.player.kills;
+                player.deaths = respond.player.deaths;
                 player.x = respond.player.x;
                 player.y = respond.player.y;
-                player.id = respond.player.id;
+                player.ssid = respond.player.ssid;
                 player.health = respond.player.health;
+                player.dead = respond.player.dead;
+                player.timeToRespawn = respond.player.timeToRespawn;
+                numberOfPlayers = respond.players.length;
+                maxPlayers = respond.maxPlayers;
+                if (respond.messages.length > 0) {
+                    if (chat.length == 0) {
+                        chat = respond.messages;
+                        for (let i = 0; i < chat.length; i++) {
+                            addMessage(chat[i]);
+                        }
+                    } else {
+                        if (chat[chat.length - 1].date != respond.messages[respond.messages.length - 1].date) {
+                            for (let i = 0; i < respond.messages.length; i++) {
+                                chat.push(respond.messages[i]);
+                                addMessage(respond.messages[i]);
+                            }
+                        }
+                    }
+                }
                 ping = Date.now() - lastPing;
                 lastPing = Date.now();
                 lastPingNumber = respond.pingNumber;
                 setTimeout(pakcetRequest, requestDelay);
-                console.log("ping", ping + "ms");
+                // console.log("ping", ping + "ms");
             }
         } else {
             console.log(`Error: ${xhr.status}`);
@@ -725,6 +744,57 @@ function pakcetRequest(callback = () => {}) {
     };
     xhr.send(body);
     pingNumber++;
+}
+function addMessage(message) {
+    let div = document.createElement("div");
+    let messageDiv = document.createElement("div");
+    messageDiv.classList.add("message");
+    let messageText = document.createElement("p");
+    messageText.classList.add("message-text");
+    messageText.innerText = message.text;
+    let messageAuthor = document.createElement("p");
+    messageAuthor.classList.add("message-author");
+    messageAuthor.innerText = `${message.nickname}:`;
+    messageAuthor.setAttribute("style", `color: ${message.color}`);
+    let messageDate = document.createElement("p");
+    messageDate.classList.add("message-date");
+    messageDate.innerText = "(" + new Date(message.date).toLocaleTimeString() + ")";
+    messageDiv.appendChild(messageDate);
+    messageDiv.appendChild(messageAuthor);
+    let chatContent = document.getElementById("chat-content");
+    div.appendChild(messageDiv);
+    div.appendChild(messageText);
+    div.style.display = "flex";
+    div.style.flexDirection = "row";
+    div.style.justifyContent = "flex-start";
+    chatContent.appendChild(div);
+    chatContent.scrollTop = chatContent.scrollHeight;
+}
+function chatSubmit() {
+    let input = document.getElementById("chat-input");
+    if (input.value.length > 0) {
+        sendMessage(input.value);
+        input.value = "";
+    }
+}
+function sendMessage(message) {
+    const xhr = new XMLHttpRequest();
+    const url = serverUrl + "/message";
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
+    const body = JSON.stringify({
+        ssid: ssid,
+        message: message,
+    });
+    xhr.onload = () => {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+            const respond = JSON.parse(xhr.responseText);
+            //console.log(respond);
+        } else {
+            console.log(`Error: ${xhr.status}`);
+        }
+    };
+    xhr.send(body);
 }
 function getCookie(name) {
     const value = `; ${document.cookie}`;
