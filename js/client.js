@@ -1,4 +1,4 @@
-var serverUrl = null;
+var serverUrl = 'https://darekparodia-sturdy-enigma-74795p44r443x9j-25565.preview.app.github.dev';
 var connected = false;
 var ssid = null;
 var requestDelay = 0;
@@ -130,12 +130,12 @@ class rifle {
         this.color = "red";
     }
     render() {
-        ctx.save();
-        ctx.fillStyle = this.color;
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle);
-        ctx.fillRect(20, -5, this.width, this.height);
-        ctx.restore();
+        // ctx.save();
+        // ctx.fillStyle = this.color;
+        // ctx.translate(this.x, this.y);
+        // ctx.rotate(this.angle);
+        // ctx.fillRect(20, -5, this.width, this.height);
+        // ctx.restore();
     }
     update() {
         if ((keyPressed.includes("r") || this.ammo <= 0) && !this.isReloading && this.ammo < this.maxAmmo) {
@@ -249,6 +249,8 @@ class playerClass {
         this.inventory = [];
         this.pickingItem = false;
         this.itemsToPick = [];
+        this.packetPos = [];
+        this.packetPosMax = 3;
     }
     update() {
         this.kd = this.kills / this.deaths;
@@ -258,6 +260,7 @@ class playerClass {
         if (this.health <= 0) {
             this.health = 0;
         }
+
         camera.x = this.x - camera.offsetX + resDiffX;
         camera.y = this.y - camera.offsetY + resDiffY;
         if (this.xp >= this.xpToNextLevel) {
@@ -339,9 +342,8 @@ function init() {
     // import images
     // import images
     textures.obamna.src = "../img/obamna.jpg";
-    if (Math.random() > 0) {
-        textures.lol.src = "../img/l.png";
-    } else textures.lol.src = "../img/l.jpg";
+
+    textures.lol.src = "https://assets-global.website-files.com/6367f8198bef742a30d18cba/63b0a179310202d096a10f69_pQTTB13eizf5Mc3BWAkr2vlSU9G0iB5TRgelD_F2qic.png";
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
     textures.baseItem.src = "../img/baseitem.png";
     textures.necoarc.src = "../img/neco-arc.png";
@@ -487,6 +489,7 @@ function render() {
     for (let element of map.projectiles) if (element.render) element.render();
 
     renderHud(); // render hud
+    leaderboardUpdate(); // update leaderboard
 }
 function renderHud() {
     if (debugMode) {
@@ -523,7 +526,6 @@ function renderHud() {
         let text1 = "Zginąłeś!";
         let text2 = "Odrodzisz się za: " + Math.ceil(player.timeToRespawn / 10) / 100;
         text(text1, camera.x + canvas.width / 2 - text1.length * 12, camera.y + canvas.height / 2, 60, "red");
-        console.log(text2.length * 4.5);
         text(text2, camera.x + canvas.width / 2 - 130, camera.y + canvas.height / 2 + 50, 20, "red");
         text("Sekund", camera.x + canvas.width / 2 + 75, camera.y + canvas.height / 2 + 50, 20, "red");
     }
@@ -715,6 +717,10 @@ function pakcetRequest(callback = () => {}) {
                 player.health = respond.player.health;
                 player.dead = respond.player.dead;
                 player.timeToRespawn = respond.player.timeToRespawn;
+                player.speed = respond.player.speed;
+                player.gun.ammo = respond.player.rifle.ammo;
+                player.gun.maxAmmo = respond.player.rifle.maxAmmo;
+                player.gun.isReloading = respond.player.rifle.isReloading;
                 numberOfPlayers = respond.players.length;
                 maxPlayers = respond.maxPlayers;
                 if (respond.messages.length > 0) {
@@ -744,6 +750,38 @@ function pakcetRequest(callback = () => {}) {
     };
     xhr.send(body);
     pingNumber++;
+}
+var lastLeaderboard ={};
+function leaderboardUpdate() {
+    let leaderboard = document.getElementById("leaderboard");
+    let players = map.players;
+    for (let i = 0; i < players.length; i++) {
+        players[i].kd = players[i].kills / players[i].deaths;
+        if(isNaN(players[i].kd)) players[i].kd = 0;
+        if (players[i].kd == Infinity) players[i].kd = players[i].kills;
+    }
+    players.sort((a, b) => {
+        return b.kd - a.kd;
+    }
+    );
+    let positions = [];
+    for (let i = 0; i < players.length; i++) {
+        positions.push({kd: players[i].kd, nickname: players[i].nickname});
+    }
+  //  if(positions.toString() == lastLeaderboard.toString()) return;
+    lastLeaderboard = positions;
+    leaderboard.innerHTML = "";
+    for (let i = 0; i < players.length; i++) {
+        let div = document.createElement("div");
+        div.classList.add("leaderboard-item");
+        let p = document.createElement("p");
+        p.classList.add("leaderboard-item-text");
+        
+        p.innerText = `${i + 1}. ${players[i].nickname} (kd: ${players[i].kd.toFixed(2)})`;
+        div.appendChild(p);
+        leaderboard.appendChild(div);
+    }
+
 }
 function addMessage(message) {
     let div = document.createElement("div");
@@ -868,7 +906,7 @@ function getServer(callback = () => {}) {
             if (respond.status == "no session found") {
                 noSession();
             } else {
-                serverUrl = window.origin + ":" + respond.serverPort;
+              //  serverUrl = window.origin + ":" + respond.serverPort;
                 callback();
             }
         } else {

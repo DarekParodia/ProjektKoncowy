@@ -5,7 +5,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(cors());
-const port = 80;
+const port = 8080;
 const gamePort = 25565;
 const textures = {
     player: "obamna.jpg",
@@ -29,7 +29,7 @@ class game {
             this.owner = owner;
             this.lifespan = 5000;
             this.creationTime = Date.now();
-            this.damage = 10;
+            this.damage = 5;
         }
         update(deltaTime, game) {
             this.x += this.vx * deltaTime;
@@ -106,6 +106,13 @@ class game {
             this.rifle.x = this.x;
             this.rifle.y = this.y;
             this.rifle.angle = this.angle;
+            if(this.keyPressed.includes("r")) {
+                this.rifle.ammo = this.rifle.maxAmmo;
+            this.rifle.isReloading = true;
+            setTimeout(() => {
+                this.rifle.isReloading = false;
+            }, 2000);
+            }
         }
         rifle = class {
             constructor(x, y, width, height, angle, color, texture) {
@@ -117,7 +124,9 @@ class game {
                 this.color = color;
                 this.texture = texture;
                 this.lastShot = Date.now();
-                this.shootDelay = 300;
+                this.shootDelay = 150;
+                this.maxAmmo = 10;
+                this.ammo = this.maxAmmo;
             }
             update() {}
         };
@@ -225,8 +234,17 @@ class game {
         }
     }
     shoot(rifle, owner) {
+        if(rifle.isReloading) return;
         let bullet = new this.bullet(rifle.x, rifle.y, 10, 10, rifle.angle, "white", null, owner);
         this.gameEntities.push(bullet);
+        rifle.ammo--;
+        if (rifle.ammo <= 0) {
+            rifle.ammo = rifle.maxAmmo;
+            rifle.isReloading = true;
+            setTimeout(() => {
+                rifle.isReloading = false;
+            }, 2000);
+        }
     }
     destroyObject(array, element) {
         this.objectsToDelete.push({array: array, element: element});
