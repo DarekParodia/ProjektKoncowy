@@ -5,7 +5,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(cors());
-const port = 8080;
+const port = 80;
 const gamePort = 25565;
 const textures = {
     player: "obamna.jpg",
@@ -76,7 +76,7 @@ class game {
             this.height - height;
             this.color = color;
             this.angle = 0;
-            this.speed = 5;
+            this.speed = 7;
             this.texture = texture;
             this.keyPressed = [];
             this.id = id;
@@ -106,12 +106,12 @@ class game {
             this.rifle.x = this.x;
             this.rifle.y = this.y;
             this.rifle.angle = this.angle;
-            if(this.keyPressed.includes("r")) {
+            if (this.keyPressed.includes("r")) {
                 this.rifle.ammo = this.rifle.maxAmmo;
-            this.rifle.isReloading = true;
-            setTimeout(() => {
-                this.rifle.isReloading = false;
-            }, 2000);
+                this.rifle.isReloading = true;
+                setTimeout(() => {
+                    this.rifle.isReloading = false;
+                }, 2000);
             }
         }
         rifle = class {
@@ -234,7 +234,7 @@ class game {
         }
     }
     shoot(rifle, owner) {
-        if(rifle.isReloading) return;
+        if (rifle.isReloading) return;
         let bullet = new this.bullet(rifle.x, rifle.y, 10, 10, rifle.angle, "white", null, owner);
         this.gameEntities.push(bullet);
         rifle.ammo--;

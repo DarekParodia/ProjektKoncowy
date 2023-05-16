@@ -1,4 +1,4 @@
-var serverUrl = 'https://darekparodia-sturdy-enigma-74795p44r443x9j-25565.preview.app.github.dev';
+var serverUrl = null;
 var connected = false;
 var ssid = null;
 var requestDelay = 0;
@@ -13,6 +13,9 @@ var infoUpdateDelay = 1000;
 var maxPlayers = 0;
 var numberOfPlayers = 0;
 var lastPingNumber = 0;
+var mapSize = 50; // in tiles
+var tileSize = 16;
+var mapScale = 5;
 document.addEventListener("DOMContentLoaded", function () {
     checkForSession(() => {
         getServer(() => {
@@ -36,6 +39,9 @@ var textures = {
     items: {
         forcefield: new Image(20, 20),
         necoarc: new Image(20, 20),
+    },
+    map: {
+        tile1: new Image(20, 20),
     },
     k4: new Image(20, 20),
 };
@@ -350,6 +356,7 @@ function init() {
     textures.items.forcefield.src = "../img/items/forcefield.png";
     textures.items.necoarc.src = "../img/items/neco-arc.png";
     textures.k4.src = "../img/k4.png";
+    textures.map.tile1.src = "../img/map/tile1.png";
     console.log(textures);
 
     camera = new cameraClass();
@@ -432,6 +439,7 @@ function render() {
         camera.lastX = camera.x;
         camera.lastY = camera.y;
     }
+    rednerMap();
     ctx.drawImage(textures.lol, -300, -300); // render background
 
     // render all object in map
@@ -498,6 +506,7 @@ function renderHud() {
         text("Player HP: " + player.health, camera.x + 10, camera.y + 65);
         text("ssid: " + player.ssid, camera.x + 10, camera.y + 85);
         text("ping: " + ping + "ms", camera.x + 10, camera.y + 105);
+        text("x: " + player.x + " y: " + player.y, camera.x + 10, camera.y + 125);
     }
     // player health
     ctx.fillStyle = "lightcoral";
@@ -554,6 +563,35 @@ function renderHud() {
         player.lastMaxPlayers = maxPlayers;
         infoUpdate();
     }
+}
+function rednerMap() {
+    ctx.fillStyle = "black";
+    for (let i = 0; i < mapSize; i++) {
+        for (let j = 0; j < mapSize; j++) {
+            let tilex = i * 0.9 * tileSize - tileSize / 2 - (mapSize * 0.9 * tileSize) / 2;
+            let tiley = j * 0.9 * tileSize - tileSize / 2 - (mapSize * 0.9 * tileSize) / 2;
+            // check if tile is on screen
+            screenHitboxX = (camera.x - canvas.width / 2) / mapScale;
+            screenHitboxY = (camera.y - canvas.height / 2) / mapScale;
+            screenHitboxWidth = canvas.width;
+            screenHitboxHeight = canvas.height;
+            if (!(tilex + tileSize < screenHitboxX || tilex > screenHitboxX + screenHitboxWidth || tiley + tileSize < screenHitboxY || tiley > screenHitboxY + screenHitboxHeight)) continue;
+
+            ctx.save();
+            ctx.scale(mapScale, -mapScale);
+            ctx.translate(tilex, tiley);
+            ctx.rotate(degreesToRadians(getRandomFromSeed(0, 4, i * j) * 90));
+            ctx.drawImage(textures.map.tile1, -tileSize / 2, -tileSize / 2, tileSize, tileSize);
+            ctx.restore();
+        }
+    }
+}
+function degreesToRadians(degrees) {
+    return (degrees * Math.PI) / 180;
+}
+function getRandomFromSeed(min, max, seed) {
+    let x = Math.sin(seed) * 10000;
+    return Math.round((x - Math.floor(x)) * (max - min) + min);
 }
 function infoUpdate() {
     if (info.nickname.innerHTML != player.nickname) info.nickname.innerHTML = player.nickname;
@@ -751,24 +789,23 @@ function pakcetRequest(callback = () => {}) {
     xhr.send(body);
     pingNumber++;
 }
-var lastLeaderboard ={};
+var lastLeaderboard = {};
 function leaderboardUpdate() {
     let leaderboard = document.getElementById("leaderboard");
     let players = map.players;
     for (let i = 0; i < players.length; i++) {
         players[i].kd = players[i].kills / players[i].deaths;
-        if(isNaN(players[i].kd)) players[i].kd = 0;
+        if (isNaN(players[i].kd)) players[i].kd = 0;
         if (players[i].kd == Infinity) players[i].kd = players[i].kills;
     }
     players.sort((a, b) => {
         return b.kd - a.kd;
-    }
-    );
+    });
     let positions = [];
     for (let i = 0; i < players.length; i++) {
         positions.push({kd: players[i].kd, nickname: players[i].nickname});
     }
-  //  if(positions.toString() == lastLeaderboard.toString()) return;
+    //  if(positions.toString() == lastLeaderboard.toString()) return;
     lastLeaderboard = positions;
     leaderboard.innerHTML = "";
     for (let i = 0; i < players.length; i++) {
@@ -776,12 +813,11 @@ function leaderboardUpdate() {
         div.classList.add("leaderboard-item");
         let p = document.createElement("p");
         p.classList.add("leaderboard-item-text");
-        
+
         p.innerText = `${i + 1}. ${players[i].nickname} (kd: ${players[i].kd.toFixed(2)})`;
         div.appendChild(p);
         leaderboard.appendChild(div);
     }
-
 }
 function addMessage(message) {
     let div = document.createElement("div");
@@ -906,7 +942,7 @@ function getServer(callback = () => {}) {
             if (respond.status == "no session found") {
                 noSession();
             } else {
-              //  serverUrl = window.origin + ":" + respond.serverPort;
+                serverUrl = window.origin + ":" + respond.serverPort;
                 callback();
             }
         } else {
