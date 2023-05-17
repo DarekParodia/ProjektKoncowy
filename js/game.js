@@ -2,6 +2,9 @@ var canvas;
 var ctx;
 var keyPressed = [];
 var gamePaused = false;
+var mapSize = 120; // in tiles
+var tileSize = 16;
+var mapScale = 5;
 var textures = {
     obamna: new Image(20, 20),
     smutnyobama: new Image(20, 20),
@@ -12,6 +15,15 @@ var textures = {
         forcefield: new Image(20, 20),
         necoarc: new Image(20, 20),
     },
+    map: {
+        tile1: new Image(20, 20),
+    },
+    enemies: {
+        enemy0: new Image(20, 20),
+        enemy1: new Image(20, 20),
+        enemy2: new Image(20, 20),
+    },
+    k4: new Image(20, 20),
 };
 var oldResX = 0;
 var oldResY = 0;
@@ -128,6 +140,7 @@ class enemy {
         this.drag = 1.01;
         this.damage = damage;
         this.color = color;
+        this.texture = textures.enemies["enemy0"];
         this.angle = 0;
         this.mass = 50;
         this.vx = 0;
@@ -156,6 +169,7 @@ class enemy {
         let y = this.y - this.height / 2;
         ctx.fillStyle = this.color;
         ctx.fillRect(x, y, this.width, this.height);
+        ctx.drawImage(this.texture, x, y, this.width, this.height);
         ctx.fillStyle = "lightcoral";
         ctx.fillRect(x, y - 10, this.width, 5);
         ctx.fillStyle = "lightgreen";
@@ -168,21 +182,7 @@ class enemy {
     }
     collision(collider, damaging = false) {
         if (collider.damage && this.health > 0 && (collider instanceof bullet || damaging)) {
-            let prevDmg = collider.damage;
-            let newDmg = collider.damage - this.health;
-            console.log(newDmg);
             this.health -= collider.damage;
-            if (newDmg > 0) {
-                if (collider.piercing) {
-                    objectsToDo.push({
-                        object: this,
-                        action: function () {
-                            shootProjectile(collider.x, collider.y, collider.angle, collider.vx + collider.vy, collider.mass, collider.parent, newDmg, collider.bulletSizeRatio);
-                            console.log("piercing", collider);
-                        },
-                    });
-                }
-            }
         }
         if (this.health <= 0) {
             objectsToDelete.push({array: map.entities, object: this});
@@ -444,7 +444,7 @@ class playerClass {
         this.width = 32;
         this.height = 42;
         this.angle = 0;
-        this.speed = 30;
+        this.speed = 25;
         this.health = 100;
         this.maxHealth = 100;
         this.xp = 0;
@@ -477,6 +477,8 @@ class playerClass {
         if (this.health <= 0) {
             this.health = 0;
             this.death();
+            gamePaused = true;
+            return;
         }
         this.gun.update();
         let diagnal = false;
@@ -610,8 +612,8 @@ function initItems() {
         },
         supremeInit: (itm) => {
             itm.parent.texture = textures.necoarc;
-            itm.parent.speed = 50;
-            itm.sup.bulletSizeRatio = 5;
+            itm.parent.speed = 30;
+            itm.sup.bulletSizeRatio = 2;
             itm.sup.maxUpgredes = 1;
         },
         supremeUpdate: (itm) => {},
@@ -652,6 +654,8 @@ function init() {
     textures.necoarc.src = "../img/neco-arc.png";
     textures.items.forcefield.src = "../img/items/forcefield.png";
     textures.items.necoarc.src = "../img/items/neco-arc.png";
+    textures.map.tile1.src = "../img/map/tile1.png";
+    for (let i = 0; i < Object.keys(textures.enemies).length; i++) textures.enemies["enemy" + i].src = `../img/enemies/enemy${i}.png`;
     console.log(textures);
     initItems();
 
@@ -740,10 +744,11 @@ function update() {
 
     // spawn enemies
     var enemies = Object.keys(map.entities).length;
-    if (enemies < 50) {
+    if (enemies < 25) {
         let random = Math.random();
-        if (random < 0.5) spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
-        else spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
+        if (random < 0.3) spawnEnemy1(randomInt(-2000, 2000), randomInt(-2000, 2000));
+        else if (random < 0.6) spawnEnemy2(randomInt(-2000, 2000), randomInt(-2000, 2000));
+        else spawnEnemy3(randomInt(-2000, 2000), randomInt(-2000, 2000));
     }
 
     objectsToDo.forEach((element) => {
@@ -765,6 +770,7 @@ function render() {
         camera.lastX = camera.x;
         camera.lastY = camera.y;
     }
+    rednerMap();
     ctx.drawImage(textures.lol, -300, -300); // render background
 
     // render all object in map
@@ -888,11 +894,42 @@ function renderHud() {
 
     // death screen
     if (player.dead) {
-        text("Zginąłeś", camera.x, camera.y + canvas.height / 4 - 100);
-        text("Naciśnij F5 aby zacząć od nowa", camera.x, camera.y + canvas.height / 4 - 80);
+        text("Zginąłeś", camera.x + canvas.width / 2, camera.y + canvas.height / 2 - 100, "red");
+        text("Naciśnij F5 aby zacząć od nowa", camera.x + canvas.width / 2, camera.y + canvas.height / 2 - 80, "red");
     }
 }
+function rednerMap() {
+    ctx.fillStyle = "black";
+    for (let i = 0; i < mapSize; i++) {
+        for (let j = 0; j < mapSize; j++) {
+            let tilex = i * 0.9 * tileSize - tileSize / 2 - (mapSize * 0.9 * tileSize) / 2;
+            let tiley = j * 0.9 * tileSize - tileSize / 2 - (mapSize * 0.9 * tileSize) / 2;
+            // check if tile is on screen
+            screenHitboxX = camera.x;
+            screenHitboxY = -camera.y - canvas.height;
+            tileWidth = tileSize * mapScale;
+            tileHeigh = tileSize * mapScale;
+            screenHitboxWidth = canvas.width + tileWidth;
+            screenHitboxHeight = canvas.height + tileHeigh;
 
+            if (!rectIntersect(tilex * mapScale, tiley * mapScale, tileWidth, tileHeigh, screenHitboxX, screenHitboxY, screenHitboxWidth, screenHitboxHeight)) continue;
+
+            ctx.save();
+            ctx.scale(mapScale, -mapScale);
+            ctx.translate(tilex, tiley);
+            ctx.rotate(degreesToRadians(getRandomFromSeed(0, 4, i * j) * 90));
+            ctx.drawImage(textures.map.tile1, -tileSize / 2, -tileSize / 2, tileSize, tileSize);
+            ctx.restore();
+        }
+    }
+}
+function degreesToRadians(degrees) {
+    return (degrees * Math.PI) / 180;
+}
+function getRandomFromSeed(min, max, seed) {
+    let x = Math.sin(seed) * 10000;
+    return Math.round((x - Math.floor(x)) * (max - min) + min);
+}
 document.addEventListener(onkeydown, () => {}); // linijka dodana przez tomasza (ave maria) (działa)
 
 function getTextWidth(text) {
@@ -1001,6 +1038,17 @@ function spawnEnemy2(x, y) {
     en.health = 20;
     en.speed = 0.25;
     en.color = "blue";
+    en.texture = textures.enemies["enemy1"];
     en.xpValue = 5;
+    map.entities.push(en);
+}
+function spawnEnemy3(x, y) {
+    let en = new enemy(x, y, 30, 30);
+    en.maxHealth = 30;
+    en.health = 30;
+    en.speed = 0.15;
+    en.color = "brown";
+    en.texture = textures.enemies["enemy2"];
+    en.xpValue = 10;
     map.entities.push(en);
 }

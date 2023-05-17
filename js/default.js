@@ -12,14 +12,18 @@ document.addEventListener("DOMContentLoaded", (e) => {
         if (!mobileButtKlikniety) {
             mobileButt.setAttribute("class", "divbtn menu-div-pojda-glowny");
             mobileMenu.setAttribute("class", "mxnMenu mxnMenuShown");
-            mobileMenu.hidden = false;
+            //  mobileMenu.hidden = false;
         } else {
             mobileButt.setAttribute("class", "divbtn");
             mobileMenu.setAttribute("class", "mxnMenu");
-            mobileMenu.hidden = true;
+            //  mobileMenu.hidden = true;
         }
         mobileButtKlikniety = !mobileButtKlikniety;
     });
     console.log("loaded");
+});
+window.addEventListener("resize", (e) => {
+    if (window.innerWidth > 960) {
+    }
 });
 function joinGame() {}

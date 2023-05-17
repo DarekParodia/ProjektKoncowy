@@ -103,6 +103,10 @@ class game {
             if (this.keyPressed.includes("d")) {
                 this.x += diagnal ? (this.speed * 0.75 * deltaTime) / 20 : (this.speed * deltaTime) / 20;
             }
+            if (this.x > 2000) this.x = 2000;
+            if (this.x < -2000) this.x = -2000;
+            if (this.y > 2000) this.y = 2000;
+            if (this.y < -2000) this.y = -2000;
             this.rifle.x = this.x;
             this.rifle.y = this.y;
             this.rifle.angle = this.angle;
@@ -141,6 +145,7 @@ class game {
         this.timeoutTime = 3000;
         this.maxPlayers = 10;
         this.objectsToDo = [];
+        this.maxMapsize;
     }
     init() {
         this.loop();

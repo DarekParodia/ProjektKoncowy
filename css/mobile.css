@@ -7,6 +7,7 @@
         left:  calc(var(--aside-max-width) + 40px) !important;
         width: calc(100% - var(--aside-max-width) - 40);
     }
+
 }
 @media all and (max-width: 960px){
     .menu{
@@ -29,7 +30,16 @@
         align-self: center;
         width: 100%;
     }
-
+    .mxnMenu{
+        display: flex !important;
+        flex-direction: column;
+        justify-content: space-around;
+    }
+    .mxnMenu h3{
+        border: 3px solid black;
+        padding: 20px;
+        border-radius: 20px;
+    }
 }
 main{
     position: absolute;
@@ -41,4 +51,7 @@ main{
      box-sizing: border-box; 
      padding-left: 20px;
     padding-right: 20px;
+}
+.mxnMenu{
+    display: none;
 }

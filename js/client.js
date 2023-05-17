@@ -13,7 +13,7 @@ var infoUpdateDelay = 1000;
 var maxPlayers = 0;
 var numberOfPlayers = 0;
 var lastPingNumber = 0;
-var mapSize = 50; // in tiles
+var mapSize = 120; // in tiles
 var tileSize = 16;
 var mapScale = 5;
 document.addEventListener("DOMContentLoaded", function () {
@@ -571,11 +571,14 @@ function rednerMap() {
             let tilex = i * 0.9 * tileSize - tileSize / 2 - (mapSize * 0.9 * tileSize) / 2;
             let tiley = j * 0.9 * tileSize - tileSize / 2 - (mapSize * 0.9 * tileSize) / 2;
             // check if tile is on screen
-            screenHitboxX = (camera.x - canvas.width / 2) / mapScale;
-            screenHitboxY = (camera.y - canvas.height / 2) / mapScale;
-            screenHitboxWidth = canvas.width;
-            screenHitboxHeight = canvas.height;
-            if (!(tilex + tileSize < screenHitboxX || tilex > screenHitboxX + screenHitboxWidth || tiley + tileSize < screenHitboxY || tiley > screenHitboxY + screenHitboxHeight)) continue;
+            screenHitboxX = camera.x;
+            screenHitboxY = -camera.y - canvas.height;
+            tileWidth = tileSize * mapScale;
+            tileHeigh = tileSize * mapScale;
+            screenHitboxWidth = canvas.width + tileWidth;
+            screenHitboxHeight = canvas.height + tileHeigh;
+
+            if (!rectIntersect(tilex * mapScale, tiley * mapScale, tileWidth, tileHeigh, screenHitboxX, screenHitboxY, screenHitboxWidth, screenHitboxHeight)) continue;
 
             ctx.save();
             ctx.scale(mapScale, -mapScale);
@@ -773,6 +776,7 @@ function pakcetRequest(callback = () => {}) {
                                 chat.push(respond.messages[i]);
                                 addMessage(respond.messages[i]);
                             }
+                            openChat();
                         }
                     }
                 }
