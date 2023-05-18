@@ -349,13 +349,13 @@ function init() {
     // import images
     textures.obamna.src = "../img/obamna.jpg";
 
-    textures.lol.src = "https://assets-global.website-files.com/6367f8198bef742a30d18cba/63b0a179310202d096a10f69_pQTTB13eizf5Mc3BWAkr2vlSU9G0iB5TRgelD_F2qic.png";
+    textures.lol.src = `https://picsum.photos/${randomInt(100, 600)}`;
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
     textures.baseItem.src = "../img/baseitem.png";
     textures.necoarc.src = "../img/neco-arc.png";
     textures.items.forcefield.src = "../img/items/forcefield.png";
     textures.items.necoarc.src = "../img/items/neco-arc.png";
-    textures.k4.src = "../img/k4.png";
+    textures.k4.src = "../img/k4.jpg";
     textures.map.tile1.src = "../img/map/tile1.png";
     console.log(textures);
 
@@ -487,13 +487,19 @@ function render() {
             ctx.rotate(element.angle);
             ctx.fillRect(0, 0, element.width, element.height);
             if (element.texture) ctx.drawImage(element.texture, 0, 0, element.width, element.height);
+            if (element.health) {
+                let healthPercentage = element.health / element.maxHealth;
+                ctx.fillStyle = "lightcoral";
+                ctx.fillRect(0, -10, element.width, 5);
+                ctx.fillStyle = "lightgreen";
+                ctx.fillRect(0, -10, element.width * healthPercentage, 5);
+            }
             ctx.restore();
         }
     }
 
     for (let element of player.inventory) element.supremeRender(element);
     player.draw(); // render playerw
-    for (let element of map.entities) if (element.render) element.render();
     for (let element of map.projectiles) if (element.render) element.render();
 
     renderHud(); // render hud

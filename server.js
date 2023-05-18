@@ -27,6 +27,7 @@ class game {
             this.color = color;
             this.texture = texture;
             this.owner = owner;
+            this.parent = owner;
             this.lifespan = 5000;
             this.creationTime = Date.now();
             this.damage = 5;
@@ -38,7 +39,7 @@ class game {
             for (let player of game.gamePlayers) {
                 if (player.dead) continue;
                 if (player.id != this.owner.id) {
-                    if (rectIntersect(player.x + player.width / 2, player.y + player.height / 2, player.width, player.height, this.x, this.y, this.width, this.height)) {
+                    if (checkCollision(this, player)) {
                         player.health -= this.damage;
                         this.destroy(game);
                         if (player.health <= 0) {
@@ -50,21 +51,58 @@ class game {
                     }
                 }
             }
+            for (const element of game.gameEnemies) {
+                if (checkCollision(this, element)) if (element.hit) element.hit(this, game);
+            }
         }
         destroy(game) {
             game.destroyObject(game.gameEntities, this);
         }
     };
     enemy = class {
-        constructor(x, y, width, height, color, texture) {
+        constructor(x, y, width, height, color) {
             this.x = x;
             this.y = y;
             this.width = width;
-            this.height - height;
+            this.height = height;
             this.color = color;
-            this.texture = texture;
+            this.focusedPlayer = null;
+            this.maxHealth = 20;
+            this.health = this.maxHealth;
+            this.lastAttack = Date.now();
+            this.attackDelay = 1000;
         }
-        update() {}
+        update(deltaTime, game) {
+            if (!this.focusedPlayer) {
+                this.focusedPlayer = game.getClosestPlayer(this);
+            }
+            if (!game.checkPlayerExists(this.focusedPlayer)) this.focusedPlayer = game.getClosestPlayer(this);
+            if (!this.focusedPlayer) return;
+            let angle = Math.atan2(this.focusedPlayer.y - this.y, this.focusedPlayer.x - this.x);
+            this.x += (Math.cos(angle) * 3 * deltaTime) / 20;
+            this.y += (Math.sin(angle) * 3 * deltaTime) / 20;
+            for (const element of game.gamePlayers) {
+                if (checkCollision(this, element)) {
+                    if (Date.now() - this.lastAttack > this.attackDelay) {
+                        element.health -= 5;
+                        this.lastAttack = Date.now();
+                    }
+                }
+            }
+        }
+        hit(hitter, game) {
+            if (hitter.parent.dead) return;
+            this.health -= hitter.damage;
+            if (this.health <= 0) {
+                hitter.parent.kills++;
+                hitter.parent.health += 10;
+                if (hitter.parent.health > hitter.parent.maxHealth) hitter.parent.health = hitter.parent.maxHealth;
+                game.destroyObject(game.gameEnemies, this);
+                return;
+            }
+            if (distance(this.x, this.y, hitter.parent.x, hitter.parent.y) < distance(this.x, this.y, this.focusedPlayer.x, this.focusedPlayer.y)) this.focusedPlayer = hitter.parent;
+            game.gameEntities.splice(game.gameEntities.indexOf(hitter), 1);
+        }
     };
 
     player = class {
@@ -137,6 +175,7 @@ class game {
     };
     constructor(maxPlayers) {
         this.gameEntities = [];
+        this.gameEnemies = [];
         this.gamePlayers = [];
         this.objectsToDelete = [];
         this.updateDelay = 0;
@@ -144,6 +183,7 @@ class game {
         this.deltaTime = 0;
         this.timeoutTime = 3000;
         this.maxPlayers = 10;
+        this.maxEnemies = 10;
         this.objectsToDo = [];
         this.maxMapsize;
     }
@@ -190,6 +230,10 @@ class game {
         for (let element of this.gameEntities) {
             if (element.update) element.update(this.deltaTime, this);
         }
+        for (let element of this.gameEnemies) {
+            if (element.update) element.update(this.deltaTime, this);
+        }
+        if (this.gameEnemies.length < this.maxEnemies) this.spawnEnemy();
         this.objectsToDelete.forEach((element) => {
             try {
                 element.array.splice(element.array.indexOf(element.element), 1);
@@ -259,9 +303,29 @@ class game {
             action: callback,
         });
     }
+    spawnEnemy() {
+        let en = new this.enemy(randomInt(-2000, 2000), randomInt(-2000, 2000), 45, 45, "red");
+        en.focusedPlayer = this.getClosestPlayer(en);
+        this.gameEnemies.push(en);
+    }
+    getClosestPlayer(enemy) {
+        let closestPlayer = null;
+        for (let player of this.gamePlayers) {
+            if (player.dead) continue;
+            if (!closestPlayer) closestPlayer = player;
+            if (distance(enemy.x, enemy.y, player.x, player.y) < distance(enemy.x, enemy.y, closestPlayer.x, closestPlayer.y)) closestPlayer = player;
+        }
+        return closestPlayer;
+    }
+    checkPlayerExists(player) {
+        for (let element of this.gamePlayers) {
+            if (element.id == player.id) return true;
+        }
+        return false;
+    }
 }
 class entity {
-    constructor(x, y, width, height, angle, color, texture) {
+    constructor(x, y, width, height, angle, color, texture, health = null, maxHealth = null) {
         this.x = x;
         this.y = y;
         this.width = width;
@@ -269,6 +333,8 @@ class entity {
         this.angle = angle;
         this.color = color;
         this.texture = texture;
+        this.health = health;
+        this.maxHealth = maxHealth;
     }
     render() {
         ctx.save();
@@ -328,8 +394,11 @@ class host {
                     newMessages.push(message);
                 }
             }
-            for (let element of this.game.gameEntities) {
-                gameEntities.push(new entity(element.x, element.y, element.width, element.height, element.angle ? element.angle : 0, element.color, element.texture));
+            let tempEntities = [];
+            tempEntities.push(...this.game.gameEntities);
+            tempEntities.push(...this.game.gameEnemies);
+            for (let element of tempEntities) {
+                gameEntities.push(new entity(element.x, element.y, element.width, element.height, element.angle ? element.angle : 0, element.color, element.texture, element.health, element.maxHealth));
             }
             res.send({status: "ok", entities: gameEntities, players: this.game.gamePlayers, player: this.game.getPlayer(data.ssid), pingNumber: data.pingNumber, messages: newMessages, maxPlayers: this.maxPlayers});
         });
@@ -489,4 +558,7 @@ function getNicknameColor(ssid) {
     let session = sessions.find((element) => element.ssid == ssid);
     if (session) return session.color;
     return null;
+}
+function distance(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
 }
