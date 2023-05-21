@@ -5,6 +5,7 @@ var gamePaused = false;
 var mapSize = 120; // in tiles
 var tileSize = 16;
 var mapScale = 5;
+var playTime = 0;
 var textures = {
     obamna: new Image(20, 20),
     smutnyobama: new Image(20, 20),
@@ -14,6 +15,9 @@ var textures = {
     items: {
         forcefield: new Image(20, 20),
         necoarc: new Image(20, 20),
+        kieliszek: new Image(20, 20),
+        pstrag: new Image(20, 20),
+        medyk: new Image(20, 20),
     },
     map: {
         tile1: new Image(20, 20),
@@ -48,6 +52,7 @@ class item {
         this.height = height;
         this.texture = textures.baseItem;
         this.collected = false;
+        this.upgrades = 0;
         this.tickFunction = (itm) => {};
         this.supremeUpdate = (itm) => {
             return "pedal";
@@ -65,8 +70,15 @@ class item {
 
                 let itemsGenerated = 0;
                 let possibleItems = [];
-                for (const item of itemList) {
+                for (var item of itemList) {
                     if (!checkIfItemIsInInventory(item)) possibleItems.push(item);
+                    else {
+                        console.log("updrades:", getPlayerItem(item.name).upgrades);
+                        if (item.possibleUprades > getPlayerItem(item.name).upgrades) {
+                            item.upgrades = getPlayerItem(item.name).upgrades;
+                            possibleItems.push(item);
+                        }
+                    }
                 }
                 console.log(possibleItems);
                 let count = 0;
@@ -82,7 +94,7 @@ class item {
                     }
                     count++;
                     if (count > possibleItems.length - 1) count = 0;
-                    if (Math.random() < possibleItems[count].rarity) count++;
+                    if (Math.random() > possibleItems[count].rarity) count++;
                     if (count > possibleItems.length - 1) count = 0;
                 }
                 objectsToDelete.push({array: map.ghosts, object: this});
@@ -100,15 +112,15 @@ class xp {
     constructor(x, y, owner, value = 1) {
         this.x = x;
         this.y = y;
-        this.width = 5;
-        this.height = 5;
+        this.width = 5 + value;
+        this.height = 5 + value;
         this.color = "green";
         this.acceleration = 0.01;
         this.velocity = 0.0001;
         this.owner = owner;
         this.bornTime = performance.now();
         this.xpValue = value;
-        this.minDistance = 200;
+        this.minDistance = 300;
         this.following = false;
     }
     update() {
@@ -303,6 +315,38 @@ function checkIfItemIsInInventory(item) {
     }
     return false;
 }
+function getPlayerItem(itemName) {
+    for (const element of player.inventory) {
+        if (element.name == itemName) return element;
+    }
+    return null;
+}
+function getPlayerItemIndex(itemName) {
+    for (let i = 0; i < player.inventory.length; i++) {
+        if (player.inventory[i].name == itemName) return i;
+    }
+    return -1;
+}
+function getClosestEnemy(x, y) {
+    let closestEnemy = null;
+    let enemiesLength = Object.keys(map.entities).length;
+    for (let i = 0; i < enemiesLength; i++) {
+        const element = map.entities[i];
+        if (element instanceof enemy) {
+            if (closestEnemy == null) {
+                closestEnemy = element;
+            } else {
+                if (getDistance(x, y, element.x, element.y) < getDistance(x, y, closestEnemy.x, closestEnemy.y)) {
+                    closestEnemy = element;
+                }
+            }
+        }
+    }
+    return closestEnemy;
+}
+function getDistance(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x2 - x1, 2) - Math.pow(y2 - y1, 2));
+}
 class rifle {
     constructor(parent) {
         this.x = 0;
@@ -375,19 +419,34 @@ class rifle {
         this.height = 5;
     }
     shotgunPrefab() {
-        this.damage = 7;
+        this.damage = 5;
         this.baseDamage = this.damage;
-        this.velocity = 1;
+        this.velocity = 15;
         this.shotspeed = 400;
         this.baseShotspeed = this.shotspeed;
         this.projectileMass = 2.2;
         this.ammo = 2;
         this.maxAmmo = 2;
         this.reloadingTime = 2000;
-        this.bulletCount = 2;
+        this.bulletCount = 5;
         this.color = "brown";
         this.width = 18;
         this.height = 13;
+    }
+    minigunPrefab() {
+        this.damage = 0.5;
+        this.baseDamage = this.damage;
+        this.velocity = 9;
+        this.shotspeed = 50;
+        this.baseShotspeed = this.shotspeed;
+        this.projectileMass = 0.2;
+        this.ammo = 100;
+        this.maxAmmo = 100;
+        this.reloadingTime = 4000;
+        this.bulletCount = 1;
+        this.color = "grey";
+        this.width = 20;
+        this.height = 10;
     }
 }
 
@@ -461,9 +520,11 @@ class playerClass {
             pistol: new rifle(this),
             rifle: new rifle(this),
             shotgun: new rifle(this),
+            minigun: new rifle(this),
         };
         this.weapons.pistol.pistolPrefab();
         this.weapons.shotgun.shotgunPrefab();
+        this.weapons.minigun.minigunPrefab();
 
         this.gun = this.weapons.rifle;
         this.isColliding = false;
@@ -495,6 +556,10 @@ class playerClass {
         if (keyPressed.includes("d")) {
             this.x += diagnal ? (this.speed * 0.75 * deltaTime) / 100 : (this.speed * deltaTime) / 100;
         }
+        if (player.x < -2000) player.x = -2000;
+        if (player.x > 2000) player.x = 2000;
+        if (player.y < -2000) player.y = -2000;
+        if (player.y > 2000) player.y = 2000;
         camera.x = this.x - camera.offsetX + resDiffX;
         camera.y = this.y - camera.offsetY + resDiffY;
         if (this.xp >= this.xpToNextLevel) {
@@ -527,17 +592,26 @@ class playerClass {
     }
     chooseItem(index) {
         console.log(index);
-        const item1 = new item(0, 0, 20, 20, true);
-        item1.collected = true;
-        item1.texture = this.itemsToPick[index].texture;
-        item1.tickFunction = this.itemsToPick[index].tickFunction;
-        item1.supremeUpdate = this.itemsToPick[index].supremeUpdate;
-        item1.supremeRender = this.itemsToPick[index].supremeRender;
-        item1.name = this.itemsToPick[index].name;
-        item1.description = this.itemsToPick[index].description;
-        item1.parent = this;
-        this.itemsToPick[index].supremeInit(item1);
-        this.addItem(item1);
+        if (checkIfItemIsInInventory(this.itemsToPick[index])) {
+            this.inventory[getPlayerItemIndex(this.itemsToPick[index].name)].upgrades++;
+            this.inventory[getPlayerItemIndex(this.itemsToPick[index].name)].supremeInit(this.inventory[getPlayerItemIndex(this.itemsToPick[index].name)]);
+        } else {
+            const item1 = new item(0, 0, 20, 20, true);
+            item1.collected = true;
+            item1.texture = this.itemsToPick[index].texture;
+            item1.tickFunction = this.itemsToPick[index].tickFunction;
+            item1.supremeUpdate = this.itemsToPick[index].supremeUpdate;
+            item1.supremeRender = this.itemsToPick[index].supremeRender;
+            item1.supremeInit = this.itemsToPick[index].supremeInit;
+            item1.name = this.itemsToPick[index].name;
+            item1.description = this.itemsToPick[index].description;
+            item1.possibleUpgrades = this.itemsToPick[index].possibleUpgrades;
+            item1.shoot = this.itemsToPick[index].shoot;
+            item1.parent = this;
+            item1.upgrades = 1;
+            this.itemsToPick[index].supremeInit(item1);
+            this.addItem(item1);
+        }
         gamePaused = false;
         player.pickingItem = false;
         player.itemsToPick = [];
@@ -558,20 +632,22 @@ var map;
 var itemList = [];
 function initItems() {
     itemList.push({
-        name: "Force Field",
-        description: "Creates Force field around the player",
+        name: "Pole Siłowe",
+        description: "Atakuje wrogów w pobliżu gracza",
         texture: textures.items.forcefield,
         rarity: 0.9,
+        upgrades: 0,
+        possibleUprades: 4,
         tickFunction: (itm) => {
             for (let element of map.entities) if (rectIntersect(itm.sup.x, itm.sup.y, itm.sup.width, itm.sup.height, element.x, element.y, element.width, element.height)) element.collision(itm.sup, true);
         },
         supremeInit: (itm) => {
             itm.sup.x = 0;
             itm.sup.y = 0;
-            itm.sup.width = 75;
-            itm.sup.height = 75;
+            itm.sup.width = 75 + 30 * itm.upgrades;
+            itm.sup.height = 75 + 30 * itm.upgrades;
             itm.sup.rotationAngle = 0;
-            itm.sup.damage = 0.25;
+            itm.sup.damage = 0.25 * itm.upgrades;
             itm.sup.parent = itm.parent;
             itm.sup.maxUpgredes = 5;
         },
@@ -588,31 +664,60 @@ function initItems() {
         },
     });
     itemList.push({
-        name: "Item OBAMY",
-        description: "Creates OBAMA field dwa around the <b>BLACKEST</b> player",
-        texture: textures.obamna,
+        name: "Wielkrotny Strzal",
+        description: "Zwieksza ilosc pociskow wystrzeliwanych przez bron",
+        texture: textures.items.pstrag,
         rarity: 0.2,
-        tickFunction: (itm) => {
-            console.log("OBAMAfield tick");
-        },
+        upgrades: 0,
+        possibleUprades: 4,
+        tickFunction: (itm) => {},
         supremeInit: (itm) => {
-            itm.sup.maxUpgredes = 3;
+            player.gun.bulletCount++;
         },
         supremeUpdate: (itm) => {},
         supremeRender: (itm) => {},
     });
     itemList.push({
+        name: "Wielokrotna Bron",
+        description: "Zwieksza ilość broni gracza",
+        texture: textures.items.kieliszek,
+        rarity: 0.2,
+        upgrades: 0,
+        possibleUprades: 2,
+        tickFunction: (itm) => {},
+        supremeInit: (itm) => {
+            itm.sup.guns = [];
+        },
+        supremeUpdate: (itm) => {
+            itm.sup.guns = [];
+            for (let i = 0; i < itm.upgrades; i++) {
+                let gun = clone(player.gun);
+                gun.angle += ((Math.PI * 2) / itm.upgrades) * i + Math.PI / 2;
+                itm.sup.guns.push(gun);
+            }
+        },
+        supremeRender: (itm) => {
+            for (let i = 0; i < itm.sup.guns.length; i++) {
+                itm.sup.guns[i].render();
+            }
+        },
+        shoot: (itm) => {
+            for (let i = 0; i < itm.sup.guns.length; i++) {
+                itm.sup.guns[i].shoot();
+            }
+        },
+    });
+    itemList.push({
         name: "Neco Arc",
         description: `<b style="color: red;">Burenya</b>`,
         texture: textures.items.necoarc,
-        rarity: 0.2,
+        rarity: 0.1,
         tickFunction: (itm) => {
-            console.log(`%cBurenya`, `background: #222; color: #bada55`);
             if (player.gun.bulletSizeRatio != itm.sup.bulletSizeRatio) player.gun.bulletSizeRatio = itm.sup.bulletSizeRatio;
         },
         supremeInit: (itm) => {
             itm.parent.texture = textures.necoarc;
-            itm.parent.speed = 30;
+            itm.parent.speed = 40;
             itm.sup.bulletSizeRatio = 2;
             itm.sup.maxUpgredes = 1;
         },
@@ -620,23 +725,88 @@ function initItems() {
         supremeRender: (itm) => {},
     });
     itemList.push({
-        name: "Turret",
-        description: "Shoots at nearest enemy",
-        texture: textures.lol,
-        rarity: 0.9,
+        name: "Medyk",
+        description: `Oto najwyższej klasy medyk który uleczy każde twoje rany i uśmierzy ból`,
+        texture: textures.items.medyk,
+        rarity: 0.6,
+        upgrades: 0,
+        possibleUprades: 3,
         tickFunction: (itm) => {
-            console.log("SPERMAfield tick");
+            if (itm.sup.lastHeal + itm.sup.healDelay < Date.now() && player.health < player.maxHealth) {
+                itm.sup.lastHeal = Date.now();
+                player.health += itm.sup.healing;
+            }
         },
         supremeInit: (itm) => {
-            itm.sup.maxUpgredes = 5;
+            if (itm.upgrades == 1) {
+                itm.sup.healing = 1;
+                itm.sup.lastHeal = 0;
+                itm.sup.healDelay = 2000;
+            } else itm.sup.healDelay -= 500;
         },
         supremeUpdate: (itm) => {},
         supremeRender: (itm) => {},
     });
+    itemList.push({
+        name: "Wierzyczka",
+        description: "Strzela do najbliższego przeciwnika",
+        texture: textures.lol,
+        rarity: 0.9,
+        upgrades: 0,
+        possibleUprades: 3,
+        tickFunction: (itm) => {},
+        supremeInit: (itm) => {
+            if (itm.upgrades == 1) {
+                itm.sup.maxUpgredes = 5;
+                itm.sup.shotspeed = 1000;
+                itm.sup.lastShot = 0;
+                itm.sup.damage = 3;
+                itm.sup.velocity = 6;
+                itm.sup.mass = 1;
+                itm.sup.width = 30;
+                itm.sup.height = 10;
+                itm.sup.angle = 0;
+                itm.sup.rotationFactor = 20;
+            } else {
+                itm.sup.damage += 2;
+                itm.sup.velocity += 1;
+                itm.sup.mass += 1;
+                itm.sup.width += 10;
+                itm.sup.height = 10;
+                itm.sup.rotationFactor -= 5;
+                itm.sup.shotspeed -= 200;
+            }
+        },
+        supremeUpdate: (itm) => {
+            let closest = getClosestEnemy(itm.parent.x, itm.parent.y);
+            if (closest != null) {
+                let angle = Math.atan2(closest.y - itm.parent.y, closest.x - itm.parent.x);
+                // slowly rotate to face the enemy
+                itm.sup.angle += (((angle - itm.sup.angle) / 10) * deltaTime) / 20;
+                itm.sup.x = itm.parent.x;
+                itm.sup.y = itm.parent.y;
+                if (itm.sup.lastShot + itm.sup.shotspeed < Date.now()) {
+                    itm.sup.lastShot = Date.now();
+                    shootProjectile(itm.sup.x, itm.sup.y, itm.sup.angle, itm.sup.velocity, itm.sup.mass, itm.parent, itm.sup.damage, 1);
+                    // console.log(itm.sup.x, itm.sup.y, itm.sup.angle, itm.sup.velocity, itm.sup.mass, itm.parent, itm.sup.damage, textures.baseItem, itm.parent);
+                    // console.log("shot");
+                }
+            }
+            // shoot
+        },
+        supremeRender: (itm) => {
+            ctx.save();
+            ctx.translate(itm.sup.x, itm.sup.y);
+            ctx.rotate(itm.sup.angle);
+            ctx.fillStyle = "lime";
+            ctx.fillRect(10, 0, itm.sup.width, itm.sup.height);
+            ctx.restore();
+        },
+    });
 }
 document.addEventListener("DOMContentLoaded", init);
-
-function init() {
+var texturesLoaded = false;
+async function init() {
     canvas = document.getElementById("gamecanvas");
     canvas.width = 854;
     canvas.height = 480;
@@ -646,14 +816,15 @@ function init() {
     addListeners();
     // import images
     textures.obamna.src = "../img/obamna.jpg";
-    if (Math.random() > 0) {
-        textures.lol.src = "../img/l.png";
-    } else textures.lol.src = "../img/l.jpg";
+    textures.lol.src = "../img/start.png";
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
     textures.baseItem.src = "../img/baseitem.png";
     textures.necoarc.src = "../img/neco-arc.png";
     textures.items.forcefield.src = "../img/items/forcefield.png";
     textures.items.necoarc.src = "../img/items/neco-arc.png";
+    textures.items.pstrag.src = "../img/items/pstrag.jpg";
+    textures.items.kieliszek.src = "../img/items/kieliszek.jpg";
+    textures.items.medyk.src = "../img/items/medyk.png";
     textures.map.tile1.src = "../img/map/tile1.png";
     for (let i = 0; i < Object.keys(textures.enemies).length; i++) textures.enemies["enemy" + i].src = `../img/enemies/enemy${i}.png`;
     console.log(textures);
@@ -674,11 +845,20 @@ function init() {
 
     windowResize();
     text("LOADING...", 200, 200, 50);
-    let numberOfXp = randomInt(11, 125);
-    for (let indx = 0; indx < numberOfXp; indx++) map.ghosts.push(new xp(randomInt(-250, 250), randomInt(-250, 250), player, 1));
+    // wait for textures to load
+    while (!texturesLoaded) {
+        texturesLoaded = true;
+        for (let i = 0; i < Object.keys(textures).length; i++) {
+            if (textures[Object.keys(textures)[i]].complete == false) {
+                texturesLoaded = false;
+                break;
+            }
+        }
+        await sleep(1);
+    }
     requestAnimationFrame(loop);
 }
-var lastLoop = 0;
+var lastLoop = Date.now();
 var lastd = performance.now();
 var lastTick = performance.now();
 var FPS = 0;
@@ -694,6 +874,7 @@ function loop() {
 }
 function update() {
     // detect collisiosn
+    playTime += deltaTime;
     for (let element of map.entities) {
         if (element.update) element.update();
         element.isColliding = false;
@@ -705,10 +886,11 @@ function update() {
     player.isColliding = false;
     // update map elements
     for (let element of map.ghosts) if (element.update) element.update();
-
-    if (keyPressed.includes("1")) player.gun = player.weapons.pistol;
-    else if (keyPressed.includes("2")) player.gun = player.weapons.rifle;
-    else if (keyPressed.includes("3")) player.gun = player.weapons.shotgun;
+    if (!player.gun.isReloading)
+        if (scrollCounter == 1) player.gun = player.weapons.pistol;
+        else if (scrollCounter == 2) player.gun = player.weapons.rifle;
+        else if (scrollCounter == 3) player.gun = player.weapons.shotgun;
+        else if (scrollCounter == 4) player.gun = player.weapons.minigun;
 
     // calculate player angle based on mouse position
     let canvasPosisitons = canvas.getBoundingClientRect();
@@ -719,6 +901,9 @@ function update() {
     // shoot wepons
     if (isMouseDown && performance.now() - player.gun.lastShot >= player.gun.shotspeed) {
         player.gun.shoot();
+        player.inventory.forEach((element) => {
+            if (element.shoot) element.shoot(element);
+        });
     }
 
     objectsToDelete.forEach((element) => {
@@ -744,7 +929,8 @@ function update() {
 
     // spawn enemies
     var enemies = Object.keys(map.entities).length;
-    if (enemies < 25) {
+    let maxEnemies = 15 + performance.now() / 6000;
+    if (enemies < maxEnemies) {
         let random = Math.random();
         if (random < 0.3) spawnEnemy1(randomInt(-2000, 2000), randomInt(-2000, 2000));
         else if (random < 0.6) spawnEnemy2(randomInt(-2000, 2000), randomInt(-2000, 2000));
@@ -800,11 +986,16 @@ function renderHud() {
 
     // player ammo
     ctx.fillStyle = "yellow";
-    let tempxa = ((canvas.height * 0.3) / player.gun.maxAmmo) * (player.gun.isReloading ? 0 : player.gun.ammo);
+    let tempxa = player.gun.isReloading ? (canvas.height * 0.3) / player.gun.reloadingTime : ((canvas.height * 0.3) / player.gun.maxAmmo) * (player.gun.isReloading ? 0 : player.gun.ammo);
     ctx.fillRect(camera.x + canvas.width - 40, camera.y + canvas.height - tempxa - 5, 25, tempxa);
     let textOffest = getTextWidth(player.gun.ammo + " / " + player.gun.maxAmmo);
-    if (player.gun.isReloading) text("Reloading...", camera.x + canvas.width - 150, camera.y + canvas.height - 10);
-    else text(player.gun.ammo + " / " + player.gun.maxAmmo, camera.x + canvas.width - 40 - textOffest, camera.y + canvas.height - 10);
+    if (player.gun.isReloading && !gamePaused) {
+        let temptext = ((player.gun.maxAmmo * (performance.now() - player.gun.lastReload)) / player.gun.reloadingTime).toFixed(0) + " / " + player.gun.maxAmmo;
+        textOffest = getTextWidth(temptext);
+        text("Reloading...", camera.x + canvas.width - 150, camera.y + canvas.height - 35);
+        text(temptext, camera.x + canvas.width - 40 - textOffest, camera.y + canvas.height - 10);
+        ctx.fillRect(camera.x + canvas.width - 40, camera.y + canvas.height - 5, 25, -((canvas.height * 0.3) / player.gun.reloadingTime) * (performance.now() - player.gun.lastReload));
+    } else text(player.gun.ammo + " / " + player.gun.maxAmmo, camera.x + canvas.width - 40 - textOffest, camera.y + canvas.height - 10);
 
     // player xp
     ctx.fillStyle = "rgba(173, 173, 173, 0.39)";
@@ -831,14 +1022,10 @@ function renderHud() {
         text("HP: " + player.maxHealth + " +", camera.x, camera.y + canvas.height / 2 - 100);
         text("ATK: " + Math.round(player.atk * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 80);
         text("ATKSPD: " + Math.round(player.atkspd * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 60);
-        text("MAXAMO: " + Math.round(player.maxamo * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 40);
-        text("WLKSPD: " + Math.round(player.spd * 100) / 100 + " +", camera.x, camera.y + canvas.height / 2 - 20);
     } else {
         text("HP: " + player.maxHealth, camera.x, camera.y + canvas.height / 2 - 100);
         text("ATK: " + Math.round(player.atk * 100) / 100, camera.x, camera.y + canvas.height / 2 - 80);
         text("ATKSPD: " + Math.round(player.atkspd * 100) / 100, camera.x, camera.y + canvas.height / 2 - 60);
-        text("MAXAMO: " + Math.round(player.maxamo * 100) / 100, camera.x, camera.y + canvas.height / 2 - 40);
-        text("WLKSPD: " + Math.round(player.spd * 100) / 100, camera.x, camera.y + canvas.height / 2 - 20);
     }
 
     // player items
@@ -882,11 +1069,14 @@ function renderHud() {
             let itemImg = document.querySelector(`#item${i} > img`);
             let itemName = document.querySelector(`#item${i} > h2`);
             let itemDesc = document.querySelector(`#item${i} > p`);
+            let itemUpgrades = document.querySelector(`#item${i} > h4`);
             itemDiv.style.display = "flex";
             itemDiv.style.visibility = "visible";
             itemImg.src = player.itemsToPick[i].texture.src;
             if (itemName.innerHTML != player.itemsToPick[i].name) itemName.innerHTML = player.itemsToPick[i].name;
             if (itemDesc.innerHTML != player.itemsToPick[i].description) itemDesc.innerHTML = player.itemsToPick[i].description;
+            let upgradeText = player.itemsToPick[i].upgrades != undefined ? `${player.itemsToPick[i].upgrades} / ${player.itemsToPick[i].possibleUprades}` : "";
+            if (itemUpgrades.innerHTML != upgradeText) itemUpgrades.innerHTML = upgradeText;
         }
     } else {
         r.style.setProperty("--pickerDisplay", "none");
@@ -896,6 +1086,7 @@ function renderHud() {
     if (player.dead) {
         text("Zginąłeś", camera.x + canvas.width / 2, camera.y + canvas.height / 2 - 100, "red");
         text("Naciśnij F5 aby zacząć od nowa", camera.x + canvas.width / 2, camera.y + canvas.height / 2 - 80, "red");
+        text("Czas Gry: " + (playTime / 1000).toFixed(2) + "s", camera.x + canvas.width / 2, camera.y + canvas.height / 2 - 60, "red");
     }
 }
 function rednerMap() {
@@ -956,15 +1147,10 @@ function addListeners() {
             player.atkspd += 0.05;
             player.skillpoints--;
         }
-        if (key == "4" && player.skillpoints > 0) {
-            player.maxamo += 0.05;
-            player.skillpoints--;
-        }
-        if (key == "5" && player.skillpoints > 0) {
-            player.spd += 0.05;
-            player.skillpoints--;
-        }
     });
+    // scroll
+    window.addEventListener("wheel", handleWheelEvent);
+
     window.addEventListener("keyup", (e) => {
         var key = e.key.toLowerCase();
         if (keyPressed.includes(key)) keyPressed.splice(keyPressed.indexOf(key), 1);
@@ -985,6 +1171,23 @@ function addListeners() {
         element.addEventListener(`click`, (e) => {
             if (player.pickingItem) player.chooseItem(i);
         });
+    }
+}
+var scrollCounter = 0;
+var lastScrollTop = 0;
+
+function handleWheelEvent(e) {
+    if (e.type === "wheel") {
+        var delta = e.deltaY || e.detail || e.wheelDelta;
+        var direction = delta ? (delta < 0 ? -1 : 1) : 0;
+
+        if (direction == 1) {
+            scrollCounter++;
+        } else if (direction == -1) {
+            scrollCounter--;
+        }
+        if (scrollCounter < 1) scrollCounter = 1;
+        if (scrollCounter > 4) scrollCounter = 4;
     }
 }
 function windowResize() {
@@ -1013,10 +1216,17 @@ function text(text, x, y, size = 20, color = "white") {
     ctx.fillText(text, x, y);
     ctx.fillStyle = tmp;
 }
+function clone(obj) {
+    if (null == obj || "object" != typeof obj) return obj;
+    var copy = new obj.constructor();
+    for (var attr in obj) {
+        if (obj.hasOwnProperty(attr)) copy[attr] = obj[attr];
+    }
+    return copy;
+}
 function shootProjectile(x, y, angle, velocity, mass, parent, damage, bulletSizeRatio = 1) {
     let bulet = new bullet(parent, x + Math.cos(angle) * 24 - 2, y + Math.sin(angle) * 24 - 2, angle, velocity, mass, damage * player.atk, "yellow", bulletSizeRatio);
     map.projectiles.push(bulet);
-    console.log("new bullet", bulet);
 }
 function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -1029,8 +1239,27 @@ function spawnRandomItem(x, y) {
     map.ghosts.push(new item(x, y, 20, 20));
     // map.ghosts.push(new item(x, y, size, size, `rgb(255, 255, 255)`));
 }
+function censor(censor) {
+    var i = 0;
+
+    return function (key, value) {
+        if (i !== 0 && typeof censor === "object" && typeof value == "object" && censor == value) return "[Circular]";
+
+        if (i >= 29)
+            // seems to be a harded maximum of 30 serialized objects?
+            return "[Unknown]";
+
+        ++i; // so we know we aren't using the original object anymore
+
+        return value;
+    };
+}
+
 function spawnEnemy1(x, y) {
     map.entities.push(new enemy(x, y, 30, 30));
+}
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 function spawnEnemy2(x, y) {
     let en = new enemy(x, y, 30, 30);

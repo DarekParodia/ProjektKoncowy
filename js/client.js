@@ -356,7 +356,7 @@ function init() {
     textures.items.forcefield.src = "../img/items/forcefield.png";
     textures.items.necoarc.src = "../img/items/neco-arc.png";
     textures.k4.src = "../img/k4.jpg";
-    textures.map.tile1.src = "../img/map/tile1.png";
+    textures.map.tile1.src = "../img/map/tile3.png";
     console.log(textures);
 
     camera = new cameraClass();

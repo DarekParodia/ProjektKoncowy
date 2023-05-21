@@ -250,11 +250,6 @@ body, main{
     font-weight: 300;
     color: #d1d2d4e7;
 }
-#chat-content::-webkit-scrollbar-track
-{
-	/* -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3); */
-	/* background-color: #44444493; */
-}
 
 #chat-content::-webkit-scrollbar
 {
