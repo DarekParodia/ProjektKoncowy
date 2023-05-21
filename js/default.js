@@ -20,6 +20,10 @@ document.addEventListener("DOMContentLoaded", (e) => {
         }
         mobileButtKlikniety = !mobileButtKlikniety;
     });
+    document.querySelector("#githubbutton").addEventListener("click", (e) => {
+        window.open("https://github.com/DarekParodia/ProjektKoncowy", "_blank");
+    });
+
     console.log("loaded");
 });
 window.addEventListener("resize", (e) => {

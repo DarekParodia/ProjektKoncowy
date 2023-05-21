@@ -929,7 +929,7 @@ function update() {
 
     // spawn enemies
     var enemies = Object.keys(map.entities).length;
-    let maxEnemies = 15 + performance.now() / 6000;
+    let maxEnemies = 15 + playTime / 6000;
     if (enemies < maxEnemies) {
         let random = Math.random();
         if (random < 0.3) spawnEnemy1(randomInt(-2000, 2000), randomInt(-2000, 2000));
@@ -1130,9 +1130,6 @@ function addListeners() {
     window.addEventListener("keydown", (e) => {
         var key = e.key.toLowerCase();
         if (!keyPressed.includes(key)) keyPressed.push(key);
-        if (key == "q") spawnEnemy1(randomInt(-1000, 1000), randomInt(-1000, 1000));
-        if (key == "e") spawnEnemy2(randomInt(-1000, 1000), randomInt(-1000, 1000));
-        if (key == "t") spawnRandomItem(randomInt(-100, 100), randomInt(-100, 100));
         if (key == "f2") debugMode = !debugMode;
         if (key == "1" && player.skillpoints > 0) {
             player.maxHealth += 5;

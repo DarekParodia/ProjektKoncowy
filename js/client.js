@@ -349,7 +349,7 @@ function init() {
     // import images
     textures.obamna.src = "../img/obamna.jpg";
 
-    textures.lol.src = `https://picsum.photos/${randomInt(100, 600)}`;
+    textures.lol.src = `../img/johnny.png`;
     textures.smutnyobama.src = "../img/obamasmutny.jpg";
     textures.baseItem.src = "../img/baseitem.png";
     textures.necoarc.src = "../img/neco-arc.png";

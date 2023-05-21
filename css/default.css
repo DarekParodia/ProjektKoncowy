@@ -10,9 +10,7 @@
     font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
     color: rgb(240, 246, 252);
 }
-html{
-    background-color: rgb(1, 4, 9);
-}
+
 .menu{
     font-size: 1.2em;
     font-weight: bold;
@@ -75,24 +73,6 @@ header{
     flex-direction: row;
     align-content: center;
     align-items: center;
-}
-aside{
-    position: fixed;
-    top: 60px;
-    left: 0;
-    width: var(--aside-width);
-    height: 100%;
-    background-color: rgb(13, 17, 23);
-    z-index: 666;
-    display: flex;
-    flex-direction: column;
-    align-content: center;
-    align-items: center;
-    justify-content: flex-start;
-    border-right: 2px solid rgb(26, 31, 39);
-    padding-left: 20px;
-    padding-right: 20px;
-    padding-top: 10px;
 }
 table, table *{
     border: solid 1px rgb(66, 66, 66);
@@ -177,15 +157,23 @@ table, table *{
     transform-origin: left;
     transform: translateX(2px) translateY(-2px);
 }
+.screenshot{
+    width: 90%;
+}
 main{
     position: absolute;
     top: 60px;
-    width: 100%;
+    height: calc(100% - 60px);
     -moz-box-sizing: border-box; 
     -webkit-box-sizing: border-box; 
      box-sizing: border-box; 
      padding-left: 20px;
     padding-right: 20px;
+    background-color: rgb(1, 4, 9);
+}
+main p{
+    width: 80%;
+    text-align: center;
 }
 h3{
     color: rgb(255, 255, 255);

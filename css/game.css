@@ -250,7 +250,10 @@ body, main{
     font-weight: 300;
     color: #d1d2d4e7;
 }
-
+main{
+    width: 100%;
+    left: 0px
+}
 #chat-content::-webkit-scrollbar
 {
 	width: 12px;
